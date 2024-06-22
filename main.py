@@ -3,6 +3,8 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from hashtag import hashtag
 from business_discovery import business_discovery, fetch_business_discovery
+from social_scrape import tiktok_scrap
+
 app = FastAPI()
 
 # CORS
@@ -26,3 +28,7 @@ async def get_business_discovery(username: str):
 @app.get("/getbulkuser")
 async def get_bulk_business_discovery(usernames: str):
     return await fetch_business_discovery(usernames)
+
+@app.get("/scrape")
+async def scrape_tiktok():
+    return await tiktok_scrap()
