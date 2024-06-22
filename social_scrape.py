@@ -30,12 +30,13 @@ async def tiktok_scrap():
                     views = row.find(class_='row-cell views-avg').get_text(strip=True) if row.find(class_='row-cell views-avg') else ''
                     likes = row.find(class_='row-cell likes-avg').get_text(strip=True) if row.find(class_='row-cell likes-avg') else ''
                     shares = row.find(class_='row-cell shares-avg').get_text(strip=True) if row.find(class_='row-cell shares-avg') else ''
-                    data.append([rank, username, comments, followers, likes, views, shares])
+                    img = row.find('img')['src'] if row.find('img') else ''
+                    data.append([rank, username, comments, followers, likes, views, shares,img])
                 
                 with open(csv_file_name, 'a', newline='', encoding='utf-8') as file:
                     writer = csv.writer(file)
                     if not file_exists:
-                        writer.writerow(['Rank', 'Username', 'Comments', 'Followers', 'Likes', 'Views', 'Shares'])
+                        writer.writerow(['Rank', 'Username', 'Comments', 'Followers', 'Likes', 'Views', 'Shares', 'img'])
                         file_exists = True 
                     writer.writerows(data)
                 scraped = True
@@ -50,7 +51,7 @@ async def tiktok_scrap():
             reader = csv.reader(infile)
             writer = csv.writer(outfile)
 
-            headers = ['Rank', 'Username', 'Comments', 'Followers', 'Likes', 'Views', 'Shares']
+            headers = ['Rank', 'Username', 'Comments', 'Followers', 'Likes', 'Views', 'Shares', 'img']
             writer.writerow(headers)
             
             for row in reader:
@@ -99,12 +100,13 @@ async def instagram_scrap():
                     followers = row.find(class_='row-cell subscribers').get_text(strip=True) if row.find(class_='row-cell subscribers') else ''
                     country = row.find(class_='row-cell audience').get_text(strip=True) if row.find(class_='row-cell audience') else ''
                     engagement = row.find(class_='row-cell engagement').get_text(strip=True) if row.find(class_='row-cell engagement') else ''
-                    data.append([rank, username, category, followers, country, engagement])
+                    img = row.find('img')['src'] if row.find('img') else ''
+                    data.append([rank, username, category, followers, country, engagement, img])
                 
                 with open(csv_file_name, 'a', newline='', encoding='utf-8') as file:
                     writer = csv.writer(file)
                     if not file_exists:
-                        writer.writerow(['Rank', 'Username', 'Category', 'Followers', 'Country', 'Engagement'])
+                        writer.writerow(['Rank', 'Username', 'Category', 'Followers', 'Country', 'Engagement', 'img'])
                         file_exists = True  
                     writer.writerows(data)
                 scraped = True
@@ -119,7 +121,7 @@ async def instagram_scrap():
             reader = csv.reader(infile)
             writer = csv.writer(outfile)
 
-            headers = ['Rank', 'Username', 'Category', 'Followers', 'Country', 'Engagement']
+            headers = ['Rank', 'Username', 'Category', 'Followers', 'Country', 'Engagement', 'img']
             writer.writerow(headers)
             
             for row in reader:
