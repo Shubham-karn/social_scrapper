@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from hashtag import hashtag
 from business_discovery import business_discovery, fetch_business_discovery
 from social_scrape import tiktok_scrap, instagram_scrap, csv_to_json
+from news import get_instagram_news, newsapi, news_data
 
 app = FastAPI()
 
@@ -44,3 +45,15 @@ async def get_tiktok_influencers():
 @app.get("/instagram/influencers")
 async def get_instagram_influencers():
     return await csv_to_json('scraped_data_instagram.csv')
+
+@app.get("/instagram/news")
+async def get_news():
+    return await get_instagram_news()
+
+@app.get("/newsapi")
+async def get_news():
+    return await newsapi()
+
+@app.get("/newsdata")
+async def get_news():
+    return await news_data()
