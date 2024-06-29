@@ -87,3 +87,68 @@ async def news_data():
         "status_code": 500,
         "error": str(e)
         }
+
+async def serpapi(media = None, q = None, topic = None, story = None):
+    non_none_params = sum(param is not None for param in [media, q, topic, story])
+    if non_none_params >1:
+        return {
+            "status_code": 400,
+            "error": "Please provide exactly one parameter."
+        }
+    
+    try:
+        url = "https://serpapi.com/search"
+        params = {
+            'engine': 'google_news',
+            'gl': 'sg',
+            'api_key': os.getenv("SERPAPI_KEY"),
+        }
+
+        if media is not None:
+            if media.lower() == 'cnn':
+                params['publication_token'] = os.getenv("CNN")
+            elif media.lower() == 'bbc':
+                params['publication_token'] = os.getenv("BBC")
+            elif media.lower() == 'guardian':
+                params['publication_token'] = os.getenv("THE_GUARDIAN")
+            else:
+                return {
+                    "status_code": 400,
+                    "error": "Invalid media"
+                }
+        if q:
+            params['q'] = q
+        if topic is not None:
+            if topic.lower() == 'sports':
+                params['topic_token'] = os.getenv("SPORTS")
+            elif topic.lower() == 'business':
+                params['topic_token'] = os.getenv("BUSINESS")
+            elif topic.lower() == 'technology':
+                params['topic_token'] = os.getenv("TECHNOLOGY")
+            elif topic.lower() == 'entertainment':
+                params['topic_token'] = os.getenv("ENTERTAINMENT")
+            elif topic.lower() == 'health':
+                params['topic_token'] = os.getenv("HEALTH")
+            elif topic.lower() == 'science':
+                params['topic_token'] = os.getenv("SCIENCE")
+            else:
+                return {
+                    "status_code": 400,
+                    "error": "Invalid topic"
+                }
+        if story:
+            params['story_token'] = story
+
+        response = requests.get(url, params=params)
+
+        data = response.json()
+
+        return {
+            "status_code": response.status_code,
+            "data": data
+        }
+    except Exception as e:
+        return {
+            "status_code": 500,
+            "error": str(e)
+        }

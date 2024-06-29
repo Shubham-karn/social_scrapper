@@ -1,10 +1,11 @@
 from fastapi import FastAPI, File, UploadFile, Form
+from typing import Optional
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from hashtag import hashtag
 from business_discovery import business_discovery, fetch_business_discovery
 from social_scrape import tiktok_scrap, instagram_scrap, csv_to_json
-from news import get_instagram_news, newsapi, news_data
+from news import get_instagram_news, newsapi, news_data, serpapi
 
 app = FastAPI()
 
@@ -57,3 +58,7 @@ async def get_news():
 @app.get("/newsdata")
 async def get_news():
     return await news_data()
+
+@app.get("/news")
+async def get_news(media: Optional[str] = None, q: Optional[str] = None, topic: Optional[str] = None, story: Optional[str] = None):
+    return await serpapi(media, q, topic, story)
