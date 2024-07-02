@@ -1,7 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, Form
 from typing import Optional
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from hashtag import hashtag
 from business_discovery import business_discovery, fetch_business_discovery
 from social_scrape import tiktok_scrap, instagram_scrap, csv_to_json
@@ -9,6 +8,9 @@ from news import get_instagram_news, newsapi, news_data, serpapi
 from summarizer import summary
 
 app = FastAPI()
+
+class Article(BaseModel):
+    article: str
 
 # CORS
 origins = [
@@ -65,5 +67,6 @@ async def get_news(media: Optional[str] = None, q: Optional[str] = None, topic: 
     return await serpapi(media, q, topic, story)
 
 @app.post("/summary")
-async def get_summary(article: str):
+async def get_summary(article_data: Article):
+    article = article_data.article
     return await summary(article)
