@@ -6,6 +6,7 @@ from hashtag import hashtag
 from business_discovery import business_discovery, fetch_business_discovery
 from social_scrape import tiktok_scrap, instagram_scrap, csv_to_json
 from news import get_instagram_news, newsapi, news_data, serpapi
+from summarizer import summary
 
 app = FastAPI()
 
@@ -62,3 +63,7 @@ async def get_news():
 @app.get("/news")
 async def get_news(media: Optional[str] = None, q: Optional[str] = None, topic: Optional[str] = None, story: Optional[str] = None):
     return await serpapi(media, q, topic, story)
+
+@app.post("/summary")
+async def get_summary(article: str):
+    return await summary(article)
