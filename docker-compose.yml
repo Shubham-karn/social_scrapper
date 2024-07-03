@@ -1,0 +1,19 @@
+version: '4.21.1'
+services:
+  app:  
+    build: .
+    volumes:
+      - .:/summarizer
+    image: summarizer
+    container_name: summary_container
+    command: fastapi run
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_container
+    ports:
+      - 80:80
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - app
