@@ -6,6 +6,7 @@ from business_discovery import business_discovery, fetch_business_discovery
 from social_scrape import tiktok_scrap, instagram_scrap, csv_to_json
 from news import get_instagram_news, newsapi, news_data, serpapi
 from summarizer import summary
+from location import get_city, get_location, get_city_url
 
 app = FastAPI()
 
@@ -70,3 +71,13 @@ async def get_news(media: Optional[str] = None, q: Optional[str] = None, topic: 
 async def get_summary(article_data: Article):
     article = article_data.article
     return await summary(article)
+
+@app.get("/city")
+async def get_city_data(q: Optional[str] = None):
+    if q:
+        return await get_city_url(q)
+    return await get_city()
+
+@app.get("/location_post")
+async def get_location_data(city: str, place: str):
+    return await get_location(city, place)
