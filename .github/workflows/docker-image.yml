@@ -2,10 +2,11 @@ name: Docker Image CI
 
 on:
   push:
-    branches:
-      - master
+    branches: [ "master" ]
+
 
 jobs:
+
   build:
     runs-on: ubuntu-latest
 
@@ -15,22 +16,19 @@ jobs:
     - name: Build and run Docker Compose
       run: |
         docker-compose up --build -d    
-      
-    - name: List all containers and exit codes
-      run: docker ps -a --format "table {{.Names}}\t{{.Status}}"
+
+    - name: wait for services to be ready
+      run: |
+        sleep 30
+        docker-compose logs -f app
+        
+    - name: Check running containers
+      run: docker ps -a
       
     - name: API test for /check endpoint
       run: |
-        for attempt in {1..5}; do
-          response=$(curl -s http://localhost/check)
-          if [ -n "$response" ]; then
-            echo "$response"
-            break
-          else
-            echo "Attempt $attempt failed, retrying in 5 seconds..."
-            sleep 5
-          fi
-        done
+        response=$(curl http://localhost/check)
+        echo "$response"
 
     - name: Stop containers
       run: docker-compose down
