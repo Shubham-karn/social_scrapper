@@ -20,5 +20,10 @@ jobs:
     - name: Check running containers
       run: docker ps
       
+    - name: API test for /check endpoint
+      run: |
+        response=$(curl -s http://localhost/check)
+        echo "$response"
+
     - name: Stop containers
       run: docker-compose down

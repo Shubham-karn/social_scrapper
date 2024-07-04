@@ -33,6 +33,19 @@ origins = [
     "http://localhost:8080",
 ]
 
+@app.get("/check")
+async def root():
+    try:
+        return {
+            "status": 200,
+            "message": "Server is up and running"
+            }
+    except Exception as e:
+        return {
+            "status": 500,
+            "error": str(e)
+            }
+
 @app.get("/hashtag/top_media")
 async def get_hashtag(q: str):
     cache_key = f"hashtag-top_media-{q}"
