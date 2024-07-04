@@ -18,7 +18,7 @@ jobs:
         docker-compose up -d
     
     - name: Wait for services to be ready
-        run: sleep 15
+      run: sleep 15
         
     - name: Check running containers
       run: docker ps
