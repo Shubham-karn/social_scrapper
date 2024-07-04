@@ -1,5 +1,11 @@
-jobs:
+name: Docker Image CI
 
+on:
+  push:
+    branches:
+      - master
+
+jobs:
   build:
     runs-on: ubuntu-latest
 
