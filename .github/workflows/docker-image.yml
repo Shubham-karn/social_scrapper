@@ -1,0 +1,24 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "master" ]
+
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Build and run Docker Compose
+      run: |
+        docker-compose up -d
+        
+    - name: Check running containers
+      run: docker ps
+      
+    - name: Stop containers
+      run: docker-compose down
