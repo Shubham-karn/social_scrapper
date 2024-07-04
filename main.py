@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI
 import aioredis
 import json
 from typing import Optional
@@ -9,6 +9,7 @@ from social_scrape import tiktok_scrap, instagram_scrap, csv_to_json
 from news import get_instagram_news, newsapi, news_data, serpapi
 from summarizer import summary
 from location import get_city, get_location, get_city_url
+from trend import get_trend_1, get_trend_2
 
 app = FastAPI()
 
@@ -163,3 +164,29 @@ async def get_city_data(q: Optional[str] = None):
 @app.get("/location_post")
 async def get_location_data(city: str, place: str):
     return await get_location(city, place)
+
+@app.get("/trend")
+async def get_trend(q:str):
+    if q == "1":
+            cache_key = "trend1"
+            cached_data = await redis.get(cache_key)
+            if cached_data:
+                return json.loads(cached_data)
+            
+            data = await get_trend_1()
+            await redis.set(cache_key, json.dumps(data), expire=25920)
+            return data
+    elif q == "2":
+            cache_key = "trend2"
+            cached_data = await redis.get(cache_key)
+            if cached_data:
+                return json.loads(cached_data)
+            
+            data = await get_trend_2()
+            await redis.set(cache_key, json.dumps(data), expire=25920)
+            return data
+    else:
+        return {
+            "status": 400,
+            "error": "Invalid query parameter"
+        }

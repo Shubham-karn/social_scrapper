@@ -25,7 +25,7 @@ jobs:
       
     - name: API test for /check endpoint
       run: |
-        response=$(curl -s http://localhost/check)
+        response=$(curl http://localhost/check)
         echo "$response"
 
     - name: Stop containers
