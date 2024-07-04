@@ -1,5 +1,11 @@
 version: '4.21.1'
 services:
+  redis:
+    image: redis:latest
+    container_name: redis_container
+    ports:
+      - 6379:6379
+
   app:  
     build: .
     volumes:
@@ -7,6 +13,8 @@ services:
     image: summarizer
     container_name: summary_container
     command: fastapi run
+    depends_on:
+      - redis
 
   nginx:
     image: nginx:latest
