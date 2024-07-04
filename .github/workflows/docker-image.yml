@@ -4,9 +4,7 @@ on:
   push:
     branches: [ "master" ]
 
-
 jobs:
-
   build:
     runs-on: ubuntu-latest
 
@@ -17,14 +15,14 @@ jobs:
         run: |
           docker-compose up --build -d    
 
-      - name: wait for services to be ready
+      - name: Wait for services to be ready
         run: |
           sleep 30
           
       - name: Check running containers
         run: docker ps -a
         
-      - name: API test for /check endpoint
+      - name: API test for /summary endpoint
         run: |
           response=$(curl -X POST http://127.0.0.1:8000/summary \
           -H "Content-Type: application/json" \
@@ -33,9 +31,9 @@ jobs:
           {
             "article": "The South Africa men's national cricket team, also known as the Proteas, RSA, represents South Africa in men's international cricket and is administered by Cricket South Africa (CSA). South Africa is a full member of the International Cricket Council (ICC). Its nickname derives from South Africa's national flower, Protea cynaroides, commonly known as the 'King Protea'. South Africa entered first-class and international cricket at the same time when they hosted an England cricket team in the 1888–89 season. Initially, the team was no match for Australia or England but, having gained experience and expertise, they were able to field a competitive team by the first decade of the 20th century. The team regularly played against Australia, England and New Zealand through to the 1960s, by which time there was considerable opposition to the country's apartheid policy. The ICC imposed an international ban on the team, commensurate with actions taken by other global sporting bodies. When the ban was imposed, South Africa had developed to a point where its team was arguably the best in the world, and even out-played Australia. The ban remained in place until 1991, after which South Africa played against India, Pakistan, Sri Lanka and the West Indies for the first time. The team has been strong since its reinstatement, and has at several times held the number-one positions in international rankings. South Africa is also one of the most successful teams in ODI cricket, winning more than 61 per cent of their matches. However, the 1998 Champions Trophy is its sole success in ICC-organised tournaments. South Africa won the gold medal at the Commonwealth Games in 1998. As of June 2024, the team is currently ranked 3rd in ODIs, 5th in T20Is and 4th in Tests."
           }
-    EOF
+          EOF
           )
           echo "$response"
-
-    - name: Stop containers
-      run: docker-compose down
+          
+      - name: Stop containers
+        run: docker-compose down
