@@ -4,9 +4,7 @@ on:
   push:
     branches: [ "master" ]
 
-
 jobs:
-
   build:
     runs-on: ubuntu-latest
 
@@ -21,27 +19,39 @@ jobs:
       run: |
         attempt=1
         max_attempts=10
-        until docker ps --format '{{.Names}}' | grep -q summary_container || [ $attempt -eq $max_attempts ]
-        do
-          echo "Attempt $attempt: Waiting for summary_container to be ready..."
+        service_name="summary_container"
+        
+        until [ $attempt -ge $max_attempts ] || docker inspect --format '{{.State.Health.Status}}' $service_name | grep -q "healthy"; do
+          echo "Attempt $attempt: Waiting for $service_name to be healthy..."
           docker ps -a
           sleep 10
           attempt=$((attempt+1))
         done
-    
+        
         if [ $attempt -eq $max_attempts ]; then
-          echo "summary_container failed to start. Dumping logs:"
-          docker logs summary_container
+          echo "$service_name failed to start. Dumping logs:"
+          docker logs $service_name
           exit 1
         fi
-        
+    
     - name: Check running containers
       run: docker ps -a
       
     - name: API test for /check endpoint
       run: |
-        response=$(curl http://localhost/check)
-        echo "$response"
+        attempt=1
+        max_attempts=10
+        until [ $attempt -ge $max_attempts ] || response=$(curl -s http://localhost/check) && echo "$response" | grep -q "expected_output"; do
+          echo "Attempt $attempt: Testing /check endpoint..."
+          sleep 10
+          attempt=$((attempt+1))
+        done
 
+        if [ $attempt -eq $max_attempts ]; then
+          echo "/check endpoint test failed. Dumping logs:"
+          docker logs summary_container
+          exit 1
+        fi
+    
     - name: Stop containers
       run: docker-compose down
