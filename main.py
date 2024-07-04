@@ -15,7 +15,7 @@ app = FastAPI()
 
 async def get_redis():
     return await aioredis.create_redis_pool(
-        'redis://localhost:6379', encoding='utf8'
+        'redis://redis_container:6379', encoding='utf8'
     )
 
 redis = None
