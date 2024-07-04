@@ -1,4 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, Form
+import aioredis
+import json
 from typing import Optional
 from pydantic import BaseModel
 from hashtag import hashtag
@@ -9,6 +11,18 @@ from summarizer import summary
 from location import get_city, get_location, get_city_url
 
 app = FastAPI()
+
+async def get_redis():
+    return await aioredis.create_redis_pool(
+        'redis://localhost:6379', encoding='utf8'
+    )
+
+redis = None
+
+@app.on_event("startup")
+async def startup_event():
+    global redis
+    redis = await get_redis()
 
 class Article(BaseModel):
     article: str
@@ -21,19 +35,47 @@ origins = [
 
 @app.get("/hashtag/top_media")
 async def get_hashtag(q: str):
-    return await hashtag(q,top_media=True)
+    cache_key = f"hashtag-top_media-{q}"
+    cached_data = await redis.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    data = await hashtag(q,top_media=True)
+    await redis.set(cache_key, json.dumps(data), expire=600)
+    return data
 
 @app.get("/hashtag/recent_media")
 async def get_hashtag(q: str):
-    return await hashtag(q,top_media=False)
+    cache_key = f"hashtag-recent_media-{q}"
+    cached_data = await redis.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    data = await hashtag(q,top_media=False)
+    await redis.set(cache_key, json.dumps(data), expire=600)
+    return data
 
 @app.get("/getuser")
 async def get_business_discovery(username: str):
-    return await business_discovery(username)
+    cache_key = f"business-discovery-{username}"
+    cached_data = await redis.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    data =  await business_discovery(username)
+    await redis.set(cache_key, json.dumps(data), expire=600)
+    return data
 
 @app.get("/getbulkuser")
 async def get_bulk_business_discovery(usernames: str):
-    return await fetch_business_discovery(usernames)
+    cache_key = f"business-discovery-bulk-{usernames}"
+    cached_data = await redis.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    data =  await fetch_business_discovery(usernames)
+    await redis.set(cache_key, json.dumps(data), expire=600)
+    return data
 
 @app.get("/scrape_tiktok")
 async def scrape_tiktok():
@@ -53,19 +95,46 @@ async def get_instagram_influencers():
 
 @app.get("/instagram/news")
 async def get_news():
-    return await get_instagram_news()
+    cache_key = "instagram-news"
+    cached_data = await redis.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    data = await get_instagram_news()
+    await redis.set(cache_key, json.dumps(data), expire=600)
+    return data
 
 @app.get("/newsapi")
 async def get_news():
-    return await newsapi()
+    cache_key = "newsapi"
+    cached_data = await redis.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    data =  await newsapi()
+    await redis.set(cache_key, json.dumps(data), expire=3600)
+    return data
 
 @app.get("/newsdata")
 async def get_news():
-    return await news_data()
+    cache_key = "newsdata"
+    cached_data = await redis.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    data =  await news_data()
+    await redis.set(cache_key, json.dumps(data), expire=435)
+    return data
 
 @app.get("/news")
 async def get_news(media: Optional[str] = None, q: Optional[str] = None, topic: Optional[str] = None, story: Optional[str] = None):
-    return await serpapi(media, q, topic, story)
+    cache_key = f"news-{media}-{q}-{topic}-{story}"
+    cached_data = await redis.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    data = await serpapi(media, q, topic, story)
+    await redis.set(cache_key, json.dumps(data), expire=25920)
+    return data
 
 @app.post("/summary")
 async def get_summary(article_data: Article):
