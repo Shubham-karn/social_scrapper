@@ -11,6 +11,8 @@ services:
     volumes:
       - .:/summarizer
     image: summarizer
+    ports:
+      - 8000:8000
     container_name: summary_container
     command: fastapi run
     depends_on:
