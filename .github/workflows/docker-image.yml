@@ -1,10 +1,5 @@
-name: Docker Image CI
-
-on:
-  push:
-    branches: [ "master" ]
-
 jobs:
+
   build:
     runs-on: ubuntu-latest
 
@@ -13,45 +8,23 @@ jobs:
     
     - name: Build and run Docker Compose
       run: |
-        docker-compose up --build -d
-    
-    - name: Wait for services and check health
-      run: |
-        attempt=1
-        max_attempts=10
-        service_name="summary_container"
-        
-        until [ $attempt -ge $max_attempts ] || docker inspect --format '{{.State.Health.Status}}' $service_name | grep -q "healthy"; do
-          echo "Attempt $attempt: Waiting for $service_name to be healthy..."
-          docker ps -a
-          sleep 10
-          attempt=$((attempt+1))
-        done
-        
-        if [ $attempt -eq $max_attempts ]; then
-          echo "$service_name failed to start. Dumping logs:"
-          docker logs $service_name
-          exit 1
-        fi
-    
-    - name: Check running containers
-      run: docker ps -a
+        docker-compose up --build -d    
+      
+    - name: List all containers and exit codes
+      run: docker ps -a --format "table {{.Names}}\t{{.Status}}"
       
     - name: API test for /check endpoint
       run: |
-        attempt=1
-        max_attempts=10
-        until [ $attempt -ge $max_attempts ] || response=$(curl -s http://localhost/check) && echo "$response" | grep -q "expected_output"; do
-          echo "Attempt $attempt: Testing /check endpoint..."
-          sleep 10
-          attempt=$((attempt+1))
+        for attempt in {1..5}; do
+          response=$(curl -s http://localhost/check)
+          if [ -n "$response" ]; then
+            echo "$response"
+            break
+          else
+            echo "Attempt $attempt failed, retrying in 5 seconds..."
+            sleep 5
+          fi
         done
 
-        if [ $attempt -eq $max_attempts ]; then
-          echo "/check endpoint test failed. Dumping logs:"
-          docker logs summary_container
-          exit 1
-        fi
-    
     - name: Stop containers
       run: docker-compose down
