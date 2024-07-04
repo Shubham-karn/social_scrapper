@@ -20,6 +20,7 @@ jobs:
     - name: wait for services to be ready
       run: |
         sleep 30
+        docker-compose logs -f app
         
     - name: Check running containers
       run: docker ps -a
