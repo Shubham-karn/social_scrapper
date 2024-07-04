@@ -21,7 +21,7 @@ jobs:
       run: sleep 15
         
     - name: Check running containers
-      run: docker ps
+      run: docker ps -a
       
     - name: API test for /check endpoint
       run: |
