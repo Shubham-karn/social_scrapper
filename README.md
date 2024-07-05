@@ -109,10 +109,6 @@ To contribute to this project, please follow these steps:
 
 Alternatively, see the GitHub documentation on [creating a pull request](https://help.github.com/articles/creating-a-pull-request/).
 
-## License
-
-This project uses the following license: [MIT License](LICENSE).
-
 ## Contact
 
-If you want to contact me, you can reach me at [shubhamkarn750@gmail.com](mailto:your-email@example.com).
+If you want to contact me, you can reach me at [shubhamkarn750@gmail.com](mailto:shubhamkarn750@gmail.com).
