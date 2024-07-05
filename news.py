@@ -152,3 +152,30 @@ async def serpapi(media = None, q = None, topic = None, story = None):
             "status_code": 500,
             "error": str(e)
         }
+    
+async def news_username():
+    try:
+        news_list = ["mothershipsg",
+            "channelnewsasia",
+            "mustsharenews",
+            "8worldnews",
+            "sgnewsdaily",
+            "fastnews.sg",
+            "sgfollowsall",
+            "sphmediasg",
+            "alvinshtan",
+            "zaobaosg",
+            "lianhewanbao",
+            "shinmindailynews",
+            "stompsingapore",
+            "uweeklysg",
+            "thenewpaper"]
+        return {
+            "status_code": 200,
+            "data": news_list
+        }
+    except Exception as e:
+        return {
+            "status_code": 500,
+            "error": str(e)
+        }

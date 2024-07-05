@@ -6,10 +6,10 @@ from pydantic import BaseModel
 from hashtag import hashtag
 from business_discovery import business_discovery, fetch_business_discovery
 from social_scrape import tiktok_scrap, instagram_scrap, csv_to_json
-from news import get_instagram_news, newsapi, news_data, serpapi
+from news import get_instagram_news, newsapi, news_data, serpapi, news_username
 from summarizer import summary
 from location import get_city, get_location, get_city_url
-from trend import get_trend_1, get_trend_2
+from trend import get_trend_1
 
 app = FastAPI()
 
@@ -93,11 +93,25 @@ async def get_bulk_business_discovery(usernames: str):
 
 @app.get("/scrape_tiktok")
 async def scrape_tiktok():
-    return await tiktok_scrap()
+    cache_key = "scrape-tiktok"
+    cached_data = await redis.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    data = await tiktok_scrap()
+    await redis.set(cache_key, json.dumps(data), expire=86400)
+    return data
 
 @app.get("/scrape_instagram")
 async def scrape_instagram():
-    return await instagram_scrap()
+    cache_key = "scrape-instagram"
+    cached_data = await redis.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    data = await instagram_scrap()
+    await redis.set(cache_key, json.dumps(data), expire=86400)
+    return data
 
 @app.get("/tiktok/influencers")
 async def get_tiktok_influencers():
@@ -150,6 +164,10 @@ async def get_news(media: Optional[str] = None, q: Optional[str] = None, topic: 
     await redis.set(cache_key, json.dumps(data), expire=25920)
     return data
 
+@app.get("/newspages")
+async def get_news_username():
+    return await news_username()
+
 @app.post("/summary")
 async def get_summary(article_data: Article):
     article = article_data.article
@@ -166,27 +184,12 @@ async def get_location_data(city: str, place: str):
     return await get_location(city, place)
 
 @app.get("/trend")
-async def get_trend(q:str):
-    if q == "1":
-            cache_key = "trend1"
-            cached_data = await redis.get(cache_key)
-            if cached_data:
-                return json.loads(cached_data)
-            
-            data = await get_trend_1()
-            await redis.set(cache_key, json.dumps(data), expire=25920)
-            return data
-    elif q == "2":
-            cache_key = "trend2"
-            cached_data = await redis.get(cache_key)
-            if cached_data:
-                return json.loads(cached_data)
-            
-            data = await get_trend_2()
-            await redis.set(cache_key, json.dumps(data), expire=25920)
-            return data
-    else:
-        return {
-            "status": 400,
-            "error": "Invalid query parameter"
-        }
+async def get_trend():
+    cache_key = "trend1"
+    cached_data = await redis.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    data = await get_trend_1()
+    await redis.set(cache_key, json.dumps(data), expire=25920)
+    return data
