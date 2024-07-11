@@ -10,8 +10,10 @@ from news import get_instagram_news, newsapi, news_data, serpapi, news_username
 from summarizer import summary
 from location import get_city, get_location, get_city_url
 from trend import get_trend_1
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 app = FastAPI()
+scheduler = AsyncIOScheduler()
 
 async def get_redis():
     return await aioredis.create_redis_pool(
@@ -193,3 +195,11 @@ async def get_trend():
     data = await get_trend_1()
     await redis.set(cache_key, json.dumps(data), expire=25920)
     return data
+
+scheduler.add_job(scrape_instagram, 'cron', hour=0, minute=0)
+
+scheduler.add_job(scrape_tiktok, 'cron', hour=0, minute=10)
+
+@app.on_event("startup")
+async def start_scheduler():
+    scheduler.start()
