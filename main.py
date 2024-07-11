@@ -2,6 +2,8 @@ from fastapi import FastAPI
 import aioredis
 import aiomysql
 import json
+import logging
+import asyncio
 from typing import Optional
 from pydantic import BaseModel
 from hashtag import hashtag
@@ -27,15 +29,27 @@ async def get_redis():
 async def get_mysql_pool():
     global mysql_pool
     if mysql_pool is None:
-        mysql_pool = await aiomysql.create_pool(
-            host='mysql_container',  
-            port=3306,  
-            user='root',
-            password='root',
-            db='summarizer',
-            charset='utf8',
-            autocommit=True,
-        )
+        retry_count = 10
+        while retry_count > 0:
+            try:
+                logging.info("Creating MySQL connection pool...")
+                mysql_pool = await aiomysql.create_pool(
+                    host='mysql_container',
+                    port=3306,
+                    user='root',
+                    password='root',
+                    db='summarizer',
+                    charset='utf8',
+                    autocommit=True,
+                )
+                logging.info("MySQL connection pool created.")
+                break
+            except Exception as e:
+                logging.error(f"Failed to connect to MySQL: {e}. Retrying in 5 seconds...")
+                retry_count -= 1
+                await asyncio.sleep(5)
+        if mysql_pool is None:
+            raise Exception("Could not establish a connection to MySQL after multiple attempts.")
     return mysql_pool
 
 @app.on_event("startup")
@@ -43,6 +57,18 @@ async def startup_event():
     global redis
     redis = await get_redis()
     await get_mysql_pool()  # Initialize MySQL pool on startup
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    global redis, mysql_pool
+    if redis:
+        redis.close()
+        await redis.wait_closed()
+        logging.info("Redis connection closed.")
+    if mysql_pool:
+        mysql_pool.close()
+        await mysql_pool.wait_closed()
+        logging.info("MySQL connection pool closed.")
 
 class Article(BaseModel):
     article: str
