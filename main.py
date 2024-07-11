@@ -44,15 +44,6 @@ async def startup_event():
     redis = await get_redis()
     await get_mysql_pool()  # Initialize MySQL pool on startup
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    if redis:
-        redis.close()
-        await redis.wait_closed()
-    if mysql_pool:
-        mysql_pool.close()
-        await mysql_pool.wait_closed()
-
 class Article(BaseModel):
     article: str
 

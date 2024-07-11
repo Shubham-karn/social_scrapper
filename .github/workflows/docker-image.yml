@@ -18,8 +18,8 @@ jobs:
       - name: Wait for services to be ready
         run: |
           sleep 30
-          docker-compose logs -f app
-          docker-compose logs -f db
+          docker logs summary_container
+          docker logs mysql_container
           
       - name: Check running containers
         run: docker ps -a
