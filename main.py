@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 import aioredis
+import aiomysql
 import json
 from typing import Optional
 from pydantic import BaseModel
@@ -15,17 +16,42 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 app = FastAPI()
 scheduler = AsyncIOScheduler()
 
+redis = None
+mysql_pool = None
+
 async def get_redis():
     return await aioredis.create_redis_pool(
         'redis://redis_container:6379', encoding='utf8'
     )
 
-redis = None
+async def get_mysql_pool():
+    global mysql_pool
+    if mysql_pool is None:
+        mysql_pool = await aiomysql.create_pool(
+            host='mysql_container',  # Docker service name for MySQL
+            port=3306,  # Default MySQL port
+            user='your_mysql_user',
+            password='your_mysql_password',
+            db='your_database_name',
+            charset='utf8',
+            autocommit=True,
+        )
+    return mysql_pool
 
 @app.on_event("startup")
 async def startup_event():
     global redis
     redis = await get_redis()
+    await get_mysql_pool()  # Initialize MySQL pool on startup
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    if redis:
+        redis.close()
+        await redis.wait_closed()
+    if mysql_pool:
+        mysql_pool.close()
+        await mysql_pool.wait_closed()
 
 class Article(BaseModel):
     article: str

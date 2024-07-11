@@ -5,7 +5,20 @@ services:
     container_name: redis_container
     ports:
       - 6379:6379
-
+ 
+  db:  
+    image: mysql:latest 
+    container_name: mysql_container
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD} 
+    ports:
+      - "3306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+      
   app:  
     build: .
     volumes:
@@ -17,6 +30,7 @@ services:
     command: fastapi run
     depends_on:
       - redis
+      - db
 
   nginx:
     image: nginx:latest
@@ -27,3 +41,6 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d
     depends_on:
       - app
+
+volumes:
+  db-data:
