@@ -28,11 +28,11 @@ async def get_mysql_pool():
     global mysql_pool
     if mysql_pool is None:
         mysql_pool = await aiomysql.create_pool(
-            host='mysql_container',  # Docker service name for MySQL
-            port=3306,  # Default MySQL port
-            user='your_mysql_user',
-            password='your_mysql_password',
-            db='your_database_name',
+            host='mysql_container',  
+            port=3306,  
+            user='root',
+            password='root',
+            db='summarizer',
             charset='utf8',
             autocommit=True,
         )
