@@ -19,6 +19,7 @@ jobs:
         run: |
           sleep 30
           docker-compose logs -f app
+          docker-compose logs -f db
           
       - name: Check running containers
         run: docker ps -a
