@@ -24,7 +24,7 @@ jobs:
         
       - name: API test for /summary endpoint
         run: |
-          response=$(curl -X POST http://127.0.0.1:8000/summary \
+          response=$(curl -X POST http://localhost/summary \
           -H "Content-Type: application/json" \
           -f \
           -d @- << EOF
