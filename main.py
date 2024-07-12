@@ -1,9 +1,6 @@
 from fastapi import FastAPI
-import aioredis
-import aiomysql
 import json
 import logging
-import asyncio
 from typing import Optional
 from pydantic import BaseModel
 from hashtag import hashtag
@@ -13,6 +10,7 @@ from news import get_instagram_news, newsapi, news_data, serpapi, news_username
 from summarizer import summary
 from location import get_city, get_location, get_city_url
 from trend import get_trend_1
+from database import get_redis, get_mysql_pool, create_insta_table, create_tiktok_tables
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 app = FastAPI()
@@ -21,42 +19,13 @@ scheduler = AsyncIOScheduler()
 redis = None
 mysql_pool = None
 
-async def get_redis():
-    return await aioredis.create_redis_pool(
-        'redis://redis_container:6379', encoding='utf8'
-    )
-
-async def get_mysql_pool():
-    global mysql_pool
-    if mysql_pool is None:
-        retry_count = 10
-        while retry_count > 0:
-            try:
-                logging.info("Creating MySQL connection pool...")
-                mysql_pool = await aiomysql.create_pool(
-                    host='mysql_container',
-                    port=3306,
-                    user='root',
-                    password='root',
-                    db='summarizer',
-                    charset='utf8',
-                    autocommit=True,
-                )
-                logging.info("MySQL connection pool created.")
-                break
-            except Exception as e:
-                logging.error(f"Failed to connect to MySQL: {e}. Retrying in 5 seconds...")
-                retry_count -= 1
-                await asyncio.sleep(5)
-        if mysql_pool is None:
-            raise Exception("Could not establish a connection to MySQL after multiple attempts.")
-    return mysql_pool
-
 @app.on_event("startup")
 async def startup_event():
     global redis
     redis = await get_redis()
-    await get_mysql_pool()  # Initialize MySQL pool on startup
+    mysql_pool = await get_mysql_pool() 
+    await create_insta_table(mysql_pool)
+    await create_tiktok_tables(mysql_pool)
 
 @app.on_event("shutdown")
 async def shutdown_event():
