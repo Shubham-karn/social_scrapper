@@ -27,18 +27,12 @@ jobs:
       - name: Check running containers
         run: docker ps -a
 
-      - name: Copy CSV and Python script to MySQL container
-        run: |
-          docker cp ./scraped_data_instagram.csv mysql_container:/scraped_data_instagram.csv
-          docker cp ./populate_database.py mysql_container:/populate_database.py
+      - name: Install dependencies
+        run: sudo apt-get install mysql-client python3-pandas -y
 
       - name: Populate database tables
         run: |
-          docker exec -i mysql_container bash << 'EOF'
-            apt-get update && apt-get install python3 python3-pip -y
-            pip3 install pandas mysql-connector-python
-            python3 /populate_database.py
-          EOF
+          python3 ./populate_database.py
 
       - name: API test for /summary endpoint
         run: |

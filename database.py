@@ -49,11 +49,11 @@ async def create_insta_table(mysql_pool):
     );
     """
 
-    create_followers_history_sql = """
-    CREATE TABLE IF NOT EXISTS followers_history (
+    create_followers_insta_sql = """
+    CREATE TABLE IF NOT EXISTS followers_insta (
         ID INT AUTO_INCREMENT PRIMARY KEY,
         InstagramStatsID INT,
-        FollowersCount INT NOT NULL,
+        FollowersCount VARCHAR(255) NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (InstagramStatsID) REFERENCES instagram_stats(ID)
     );
@@ -63,7 +63,7 @@ async def create_insta_table(mysql_pool):
     CREATE TABLE IF NOT EXISTS engagement_history (
         ID INT AUTO_INCREMENT PRIMARY KEY,
         InstagramStatsID INT,
-        EngagementRate FLOAT NOT NULL,
+        EngagementRate VARCHAR(255) NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (InstagramStatsID) REFERENCES instagram_stats(ID)
     );
@@ -73,7 +73,7 @@ async def create_insta_table(mysql_pool):
         async with mysql_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(create_instagram_stats_sql)
-                await cur.execute(create_followers_history_sql)
+                await cur.execute(create_followers_insta_sql)
                 await cur.execute(create_engagement_history_sql)
                 await conn.commit()
                 logging.info("Tables created successfully.")
@@ -85,7 +85,7 @@ async def create_tiktok_tables(mysql_pool):
     CREATE TABLE IF NOT EXISTS tiktok_stats (
         ID INT AUTO_INCREMENT PRIMARY KEY,
         Username VARCHAR(255) NOT NULL UNIQUE,
-        img VARCHAR(255),
+        ImageURL VARCHAR(255),
         `Rank` INT
     );
     """
@@ -94,17 +94,17 @@ async def create_tiktok_tables(mysql_pool):
     CREATE TABLE IF NOT EXISTS comments_history (
         ID INT AUTO_INCREMENT PRIMARY KEY,
         TikTokStatsID INT,
-        CommentsCount INT NOT NULL,
+        CommentsCount VARCHAR(255) NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (TikTokStatsID) REFERENCES tiktok_stats(ID)
     );
     """
 
-    create_followers_history_sql = """
-    CREATE TABLE IF NOT EXISTS followers_history (
+    create_followers_tiktok_sql = """
+    CREATE TABLE IF NOT EXISTS followers_tiktok (
         ID INT AUTO_INCREMENT PRIMARY KEY,
         TikTokStatsID INT,
-        FollowersCount INT NOT NULL,
+        FollowersCount VARCHAR(255) NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (TikTokStatsID) REFERENCES tiktok_stats(ID)
     );
@@ -114,7 +114,7 @@ async def create_tiktok_tables(mysql_pool):
     CREATE TABLE IF NOT EXISTS likes_history (
         ID INT AUTO_INCREMENT PRIMARY KEY,
         TikTokStatsID INT,
-        LikesCount INT NOT NULL,
+        LikesCount VARCHAR(255) NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (TikTokStatsID) REFERENCES tiktok_stats(ID)
     );
@@ -124,7 +124,7 @@ async def create_tiktok_tables(mysql_pool):
     CREATE TABLE IF NOT EXISTS views_history (
         ID INT AUTO_INCREMENT PRIMARY KEY,
         TikTokStatsID INT,
-        ViewsCount INT NOT NULL,
+        ViewsCount VARCHAR(255) NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (TikTokStatsID) REFERENCES tiktok_stats(ID)
     );
@@ -134,7 +134,7 @@ async def create_tiktok_tables(mysql_pool):
     CREATE TABLE IF NOT EXISTS shares_history (
         ID INT AUTO_INCREMENT PRIMARY KEY,
         TikTokStatsID INT,
-        SharesCount INT NOT NULL,
+        SharesCount VARCHAR(255) NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (TikTokStatsID) REFERENCES tiktok_stats(ID)
     );
@@ -145,7 +145,7 @@ async def create_tiktok_tables(mysql_pool):
             async with conn.cursor() as cur:
                 await cur.execute(create_tiktok_stats_sql)
                 await cur.execute(create_comments_history_sql)
-                await cur.execute(create_followers_history_sql)
+                await cur.execute(create_followers_tiktok_sql)
                 await cur.execute(create_likes_history_sql)
                 await cur.execute(create_views_history_sql)
                 await cur.execute(create_shares_history_sql)
