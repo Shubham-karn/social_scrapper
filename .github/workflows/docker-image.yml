@@ -28,7 +28,7 @@ jobs:
         run: sudo apt-get install mysql-client python3-pandas -y
 
       - name: Copy CSV file to MySQL container
-        run: docker cp /mnt/data/scraped_data_instagram.csv mysql_container:/scraped_data_instagram.csv
+        run: docker cp /summarizer/scraped_data_instagram.csv mysql_container:/scraped_data_instagram.csv
 
       - name: Populate database tables
         run: |
