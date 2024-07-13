@@ -10,7 +10,7 @@ df_insta.fillna(value={'Username': 'N/A', 'Category': 'N/A', 'Country': 'N/A', '
 df_tiktok.fillna(value={'Username': 'N/A', 'img': 'N/A', 'Rank': 0}, inplace=True)
 
 async def populate_insta_database():
-    conn = await aiomysql.connect(user='root', password='root', host='mysql_container', port=3306, db='summarizer')
+    conn = await aiomysql.connect(user='root', password='root', host='localhost', port=3306, db='summarizer')
     async with conn.cursor() as cursor:
         
         for index, row in df_insta.iterrows():
@@ -43,7 +43,7 @@ async def populate_insta_database():
     conn.close()
 
 async def populate_tiktok_database():
-    conn = await aiomysql.connect(user='root', password='root', host='mysql_container', port=3306, db='summarizer')
+    conn = await aiomysql.connect(user='root', password='root', host='localhost', port=3306, db='summarizer')
     async with conn.cursor() as cursor:
         
         for index, row in df_tiktok.iterrows():
