@@ -11,6 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
       - name: Build and run Docker Compose
         run: |
           docker-compose up --build -d    
@@ -24,64 +27,25 @@ jobs:
       - name: Check running containers
         run: docker ps -a
 
-      - name: Copy CSV file to MySQL container
-        run: docker cp ./summarizer/scraped_data_instagram.csv mysql_container:/scraped_data_instagram.csv
+      - name: Copy CSV and Python script to MySQL container
+        run: |
+          docker cp ./scraped_data_instagram.csv mysql_container:/scraped_data_instagram.csv
+          docker cp ./populate_database.py mysql_container:/populate_database.py
 
       - name: Populate database tables
         run: |
-          docker exec -i mysql_container bash << EOF
+          docker exec -i mysql_container bash << 'EOF'
             apt-get update && apt-get install python3 python3-pip -y
             pip3 install pandas mysql-connector-python
-
-            python3 << EOPY
-            import pandas as pd
-            import mysql.connector
-
-            # Load the CSV file
-            df = pd.read_csv('/scraped_data_instagram.csv')
-
-            # Connect to MySQL
-            cnx = mysql.connector.connect(user='root', password='root', host='127.0.0.1', database='summarizer')
-            cursor = cnx.cursor()
-
-            # Populate instagram_stats table
-            for index, row in df.iterrows():
-                cursor.execute("""
-                    INSERT INTO instagram_stats (Username, Category, Country, ImageURL, `Rank`)
-                    VALUES (%s, %s, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE Username=VALUES(Username)
-                """, (row['Username'], row['Category'], row['Country'], row['img'], row['Rank']))
-                cnx.commit()
-
-            # Populate followers_history and engagement_history tables
-            for index, row in df.iterrows():
-                cursor.execute("SELECT ID FROM instagram_stats WHERE Username = %s", (row['Username'],))
-                instagram_stats_id = cursor.fetchone()[0]
-
-                cursor.execute("""
-                    INSERT INTO followers_history (InstagramStatsID, FollowersCount, RecordedAt)
-                    VALUES (%s, %s, NOW())
-                """, (instagram_stats_id, row['Followers']))
-                cnx.commit()
-
-                cursor.execute("""
-                    INSERT INTO engagement_history (InstagramStatsID, EngagementRate, RecordedAt)
-                    VALUES (%s, %s, NOW())
-                """, (instagram_stats_id, row['Engagement']))
-                cnx.commit()
-
-            # Close the connection
-            cursor.close()
-            cnx.close()
-            EOPY
-            EOF
+            python3 /populate_database.py
+          EOF
 
       - name: API test for /summary endpoint
         run: |
           response=$(curl -X POST http://localhost/summary \
           -H "Content-Type: application/json" \
           -f \
-          -d @- << EOF
+          -d @- << 'EOF'
           {
             "article": "The South Africa men's national cricket team, also known as the Proteas, RSA, represents South Africa in men's international cricket and is administered by Cricket South Africa (CSA). South Africa is a full member of the International Cricket Council (ICC). Its nickname derives from South Africa's national flower, Protea cynaroides, commonly known as the 'King Protea'. South Africa entered first-class and international cricket at the same time when they hosted an England cricket team in the 1888–89 season. Initially, the team was no match for Australia or England but, having gained experience and expertise, they were able to field a competitive team by the first decade of the 20th century. The team regularly played against Australia, England and New Zealand through to the 1960s, by which time there was considerable opposition to the country's apartheid policy. The ICC imposed an international ban on the team, commensurate with actions taken by other global sporting bodies. When the ban was imposed, South Africa had developed to a point where its team was arguably the best in the world, and even out-played Australia. The ban remained in place until 1991, after which South Africa played against India, Pakistan, Sri Lanka and the West Indies for the first time. The team has been strong since its reinstatement, and has at several times held the number-one positions in international rankings. South Africa is also one of the most successful teams in ODI cricket, winning more than 61 per cent of their matches. However, the 1998 Champions Trophy is its sole success in ICC-organised tournaments. South Africa won the gold medal at the Commonwealth Games in 1998. As of June 2024, the team is currently ranked 3rd in ODIs, 5th in T20Is and 4th in Tests."
           }
