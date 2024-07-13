@@ -8,7 +8,7 @@ mysql_pool = None
 
 async def get_redis():
     return await aioredis.create_redis_pool(
-        'redis://redis_container:6379', encoding='utf8'
+        'redis://localhost:6379', encoding='utf8'
     )
 
 async def get_mysql_pool():
@@ -19,8 +19,8 @@ async def get_mysql_pool():
             try:
                 logging.info("Creating MySQL connection pool...")
                 mysql_pool = await aiomysql.create_pool(
-                    host='mysql_container',
-                    port=3306,
+                    host='localhost',
+                    port=3307,
                     user='root',
                     password='root',
                     db='summarizer',
@@ -42,10 +42,9 @@ async def create_insta_table(mysql_pool):
     CREATE TABLE IF NOT EXISTS instagram_stats (
         ID INT AUTO_INCREMENT PRIMARY KEY,
         Username VARCHAR(255) NOT NULL UNIQUE,
-        Category VARCHAR(255) NOT NULL,
+        Category VARCHAR(255),
         Country VARCHAR(255),
-        ImageURL VARCHAR(255),
-        `Rank` INT
+        ImageURL VARCHAR(255)
     );
     """
 
@@ -69,24 +68,34 @@ async def create_insta_table(mysql_pool):
     );
     """
 
+    create_rank_insta_sql = """
+    CREATE TABLE IF NOT EXISTS rank_insta (
+        ID INT AUTO_INCREMENT PRIMARY KEY,
+        InstagramStatsID INT,
+        Position INT NOT NULL,
+        RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (InstagramStatsID) REFERENCES instagram_stats(ID)
+    );
+    """
+
     try:
         async with mysql_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(create_instagram_stats_sql)
                 await cur.execute(create_followers_insta_sql)
                 await cur.execute(create_engagement_history_sql)
+                await cur.execute(create_rank_insta_sql)
                 await conn.commit()
-                logging.info("Tables created successfully.")
+                logging.info("Instagram tables created successfully.")
     except Exception as e:
-        logging.error(f"Failed to create tables: {e}")
+        logging.error(f"Failed to create Instagram tables: {e}")
 
 async def create_tiktok_tables(mysql_pool):
     create_tiktok_stats_sql = """
     CREATE TABLE IF NOT EXISTS tiktok_stats (
         ID INT AUTO_INCREMENT PRIMARY KEY,
         Username VARCHAR(255) NOT NULL UNIQUE,
-        ImageURL VARCHAR(255),
-        `Rank` INT
+        ImageURL VARCHAR(255)
     );
     """
 
@@ -140,6 +149,16 @@ async def create_tiktok_tables(mysql_pool):
     );
     """
 
+    create_rank_tiktok_sql = """
+    CREATE TABLE IF NOT EXISTS rank_tiktok (
+        ID INT AUTO_INCREMENT PRIMARY KEY,
+        TikTokStatsID INT,
+        Position INT NOT NULL,
+        RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (TikTokStatsID) REFERENCES tiktok_stats(ID)
+    );
+    """
+
     try:
         async with mysql_pool.acquire() as conn:
             async with conn.cursor() as cur:
@@ -149,7 +168,19 @@ async def create_tiktok_tables(mysql_pool):
                 await cur.execute(create_likes_history_sql)
                 await cur.execute(create_views_history_sql)
                 await cur.execute(create_shares_history_sql)
+                await cur.execute(create_rank_tiktok_sql)
                 await conn.commit()
-                logging.info("TikTok stats and history tables created successfully.")
+                logging.info("TikTok tables created successfully.")
     except Exception as e:
         logging.error(f"Failed to create TikTok tables: {e}")
+
+async def main():
+    global redis, mysql_pool
+    redis = await get_redis()
+    mysql_pool = await get_mysql_pool()
+    await create_insta_table(mysql_pool)
+    await create_tiktok_tables(mysql_pool)
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    asyncio.run(main())
