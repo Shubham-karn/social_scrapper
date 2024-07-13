@@ -52,7 +52,7 @@ async def populate_insta_database():
     conn.close()
 
 async def populate_tiktok_database():
-    conn = await aiomysql.connect(user='root', password='root', host='localhost', port=3307, db='summarizer')
+    conn = await aiomysql.connect(user='root', password='root', host='localhost', port=3306, db='summarizer')
     async with conn.cursor() as cursor:
         for index, row in df_tiktok.iterrows():
             # Insert or update TikTok stats
