@@ -49,6 +49,11 @@ jobs:
           EOF
           )
           echo "$response"
+
+      - name: API test for /instagram endpoint
+        run: |
+          response=$(curl -X GET http://localhost/instagram/jjlin)
+          echo "$response"
           
       - name: Stop containers
         run: docker-compose down

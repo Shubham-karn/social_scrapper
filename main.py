@@ -141,6 +141,18 @@ async def get_tiktok_influencers():
 async def get_instagram_influencers():
     return await csv_to_json('scraped_data_instagram.csv')
 
+@app.get("/instagram/{username}")
+async def get_instagram_data(username: str):
+    mysql_pool = await get_mysql_pool()
+    data = await query_insta_user_data(mysql_pool, username)
+    return data
+
+@app.get("/tiktok/{username}")
+async def get_tiktok_data(username: str):
+    mysql_pool = await get_mysql_pool()
+    data = await query_tiktok_user_data(mysql_pool, username)
+    return data
+
 @app.get("/instagram/news")
 async def get_news():
     cache_key = "instagram-news"

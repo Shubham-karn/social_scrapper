@@ -1,37 +1,81 @@
 import logging
 import pandas as pd
 import aiomysql
+import json
+from datetime import datetime
+from collections import defaultdict
+
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj)} not serializable")
 
 async def query_insta_user_data(mysql_pool, username):
     query_sql = """
-    SELECT 
-        i.Username, i.Category, i.Country, i.ImageURL, 
-        f.FollowersCount, f.RecordedAt AS FollowersRecordedAt,
-        e.EngagementRate, e.RecordedAt AS EngagementRecordedAt,
-        r.Position, r.RecordedAt AS RankRecordedAt
-    FROM instagram_stats i
-    LEFT JOIN followers_insta f ON i.ID = f.InstagramStatsID
-    LEFT JOIN engagement_history e ON i.ID = e.InstagramStatsID
-    LEFT JOIN rank_insta r ON i.ID = r.InstagramStatsID
-    WHERE i.Username = %s
-    ORDER BY f.RecordedAt DESC, e.RecordedAt DESC;
+        SELECT 
+            i.Username, i.Category, i.Country, i.ImageURL, 
+            f.FollowersCount, f.RecordedAt AS FollowersRecordedAt,
+            e.EngagementRate, e.RecordedAt AS EngagementRecordedAt,
+            r.Position, r.RecordedAt AS RankRecordedAt
+        FROM instagram_stats i
+        LEFT JOIN followers_insta f ON i.ID = f.InstagramStatsID
+        LEFT JOIN engagement_history e ON i.ID = e.InstagramStatsID
+        LEFT JOIN rank_insta r ON i.ID = r.InstagramStatsID
+        WHERE i.Username = %s
+        ORDER BY f.RecordedAt DESC, e.RecordedAt DESC, r.RecordedAt DESC
     """
     try:
         async with mysql_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 await cur.execute(query_sql, (username,))
-                result = await cur.fetchall()
-
-                df = pd.DataFrame(result)
-
-                nested_df = df.groupby(["Username", "Category", "Country", "ImageURL"]).apply(lambda x: x[["Position", "FollowersCount", "FollowersRecordedAt", "EngagementRate", "EngagementRecordedAt", "RankRecordedAt"]].to_dict(orient="records")).reset_index()
-                nested_df.columns = ["Username", "Category", "Country", "ImageURL", "Details"]
-
-                return nested_df.to_dict(orient="records")
+                results = await cur.fetchall()
+                
+                if results:
+                    user_data = {
+                        "Username": results[0]['Username'],
+                        "Category": results[0]['Category'],
+                        "Country": results[0]['Country'],
+                        "ImageURL": results[0]['ImageURL'],
+                        "HistoricalData": defaultdict(dict)
+                    }
+                    
+                    for row in results:
+                        date_str = row['FollowersRecordedAt'].date().isoformat()
+                        if date_str not in user_data["HistoricalData"]:
+                            user_data["HistoricalData"][date_str] = {
+                                "FollowersCount": None,
+                                "EngagementRate": None,
+                                "Position": None
+                            }
+                        
+                        if row['FollowersCount'] is not None:
+                            user_data["HistoricalData"][date_str]["FollowersCount"] = row['FollowersCount']
+                        
+                        if row['EngagementRate'] is not None:
+                            user_data["HistoricalData"][date_str]["EngagementRate"] = row['EngagementRate']
+                        
+                        if row['Position'] is not None:
+                            user_data["HistoricalData"][date_str]["Position"] = row['Position']
+                    
+                    # Convert defaultdict to regular dict and sort by date
+                    user_data["HistoricalData"] = dict(sorted(user_data["HistoricalData"].items(), reverse=True))
+                    
+                    # Use json.dumps with the custom serializer to handle datetime objects
+                    return {
+                        "status_code": 200,
+                        "data": json.loads(json.dumps(user_data, default=json_serial))
+                    }
+                else:
+                    return None
             
     except Exception as e:
         logging.error(f"Failed to query Instagram user data: {e}")
-        return None
+        return {
+            "status_code": 500,
+            "error": str(e)
+        
+        }
 
 async def query_tiktok_user_data(mysql_pool, username):
     query_sql = """
@@ -39,7 +83,8 @@ async def query_tiktok_user_data(mysql_pool, username):
         t.Username, t.ImageURL, r.Position,
         c.CommentsCount, ft.FollowersCount, l.LikesCount, v.ViewsCount, s.SharesCount, 
         c.RecordedAt AS CommentsRecordedAt, ft.RecordedAt AS FollowersRecordedAt, 
-        l.RecordedAt AS LikesRecordedAt, v.RecordedAt AS ViewsRecordedAt, s.RecordedAt AS SharesRecordedAt
+        l.RecordedAt AS LikesRecordedAt, v.RecordedAt AS ViewsRecordedAt, s.RecordedAt AS SharesRecordedAt,
+        r.RecordedAt AS RankRecordedAt
     FROM tiktok_stats t
     LEFT JOIN comments_history c ON t.ID = c.TikTokStatsID
     LEFT JOIN followers_tiktok ft ON t.ID = ft.TikTokStatsID
@@ -47,20 +92,57 @@ async def query_tiktok_user_data(mysql_pool, username):
     LEFT JOIN views_history v ON t.ID = v.TikTokStatsID
     LEFT JOIN shares_history s ON t.ID = s.TikTokStatsID
     LEFT JOIN rank_tiktok r ON t.ID = r.TikTokStatsID
-    WHERE t.Username = %s;
+    WHERE t.Username = %s
+    ORDER BY ft.RecordedAt DESC, c.RecordedAt DESC, l.RecordedAt DESC, v.RecordedAt DESC, s.RecordedAt DESC, r.RecordedAt DESC;
     """
     try:
         async with mysql_pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 await cur.execute(query_sql, (username,))
-                result = await cur.fetchall()
-
-                df = pd.DataFrame(result)
-
-                nested_df = df.groupby(["Username", "ImageURL"]).apply(lambda x: x[["Position", "CommentsCount", "CommentsRecordedAt", "FollowersCount", "FollowersRecordedAt", "LikesCount", "LikesRecordedAt", "ViewsCount", "ViewsRecordedAt", "SharesCount", "SharesRecordedAt"]].to_dict(orient="records")).reset_index()
-                nested_df.columns = ["Username", "ImageURL", "Details"]
-
-                return nested_df.to_dict(orient="records")
+                results = await cur.fetchall()
+                
+                if results:
+                    user_data = {
+                        "Username": results[0]['Username'],
+                        "ImageURL": results[0]['ImageURL'],
+                        "HistoricalData": defaultdict(dict)
+                    }
+                    
+                    for row in results:
+                        date_str = row['FollowersRecordedAt'].date().isoformat()
+                        if date_str not in user_data["HistoricalData"]:
+                            user_data["HistoricalData"][date_str] = {
+                                "Position": None,
+                                "CommentsCount": None,
+                                "FollowersCount": None,
+                                "LikesCount": None,
+                                "ViewsCount": None,
+                                "SharesCount": None
+                            }
+                        
+                        if row['Position'] is not None:
+                            user_data["HistoricalData"][date_str]["Position"] = row['Position']
+                        if row['CommentsCount'] is not None:
+                            user_data["HistoricalData"][date_str]["CommentsCount"] = row['CommentsCount']
+                        if row['FollowersCount'] is not None:
+                            user_data["HistoricalData"][date_str]["FollowersCount"] = row['FollowersCount']
+                        if row['LikesCount'] is not None:
+                            user_data["HistoricalData"][date_str]["LikesCount"] = row['LikesCount']
+                        if row['ViewsCount'] is not None:
+                            user_data["HistoricalData"][date_str]["ViewsCount"] = row['ViewsCount']
+                        if row['SharesCount'] is not None:
+                            user_data["HistoricalData"][date_str]["SharesCount"] = row['SharesCount']
+                    
+                    # Convert defaultdict to regular dict and sort by date
+                    user_data["HistoricalData"] = dict(sorted(user_data["HistoricalData"].items(), reverse=True))
+                    
+                    # Use json.dumps with the custom serializer to handle datetime objects
+                    return {
+                        "status_code": 200,
+                        "data": json.loads(json.dumps(user_data, default=json_serial))
+                    }
+                else:
+                    return None
             
     except Exception as e:
         logging.error(f"Failed to query TikTok user data: {e}")

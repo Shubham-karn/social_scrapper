@@ -11,7 +11,7 @@ df_insta.fillna(value={'Username': 'N/A', 'Category': 'N/A', 'Country': 'N/A', '
 df_tiktok.fillna(value={'Username': 'N/A', 'img': 'N/A'}, inplace=True)
 
 async def populate_insta_database():
-    conn = await aiomysql.connect(user='root', password='root', host='localhost', port=3307, db='summarizer')
+    conn = await aiomysql.connect(user='root', password='root', host='localhost', port=3306, db='summarizer')
     async with conn.cursor() as cursor:
         for index, row in df_insta.iterrows():
             # Insert or update Instagram stats
