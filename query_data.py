@@ -386,6 +386,8 @@ async def get_insta_stats(mysql_pool):
         rank_insta r28 ON insta_stats.ID = r28.InstagramStatsID AND DATE(r28.RecordedAt) = DATE_SUB(CURDATE(), INTERVAL 28 DAY)
     GROUP BY
         insta_stats.ID, insta_stats.Username, insta_stats.Category, insta_stats.Country, insta_stats.ImageURL
+    ORDER BY
+        RankToday ASC
     """
 
     try:
@@ -504,6 +506,8 @@ async def get_tiktok_stats(mysql_pool):
         rank_tiktok r28 ON tiktok_stats.ID = r28.TikTokStatsID AND DATE(r28.RecordedAt) = DATE_SUB(CURDATE(), INTERVAL 28 DAY)
     GROUP BY
         tiktok_stats.ID, tiktok_stats.Username, tiktok_stats.ImageURL
+    ORDER BY
+        RankToday ASC
     """
 
     try:
