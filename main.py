@@ -5,13 +5,13 @@ from typing import Optional
 from pydantic import BaseModel
 from hashtag import hashtag
 from business_discovery import business_discovery, fetch_business_discovery
-from social_scrape import tiktok_scrap, instagram_scrap, csv_to_json
+from social_scrape import tiktok_scrap, instagram_scrap
 from news import get_instagram_news, newsapi, news_data, serpapi, news_username
 from summarizer import summary
 from location import get_city, get_location, get_city_url
 from trend import get_trend_1
 from database import get_redis, get_mysql_pool, create_insta_table, create_tiktok_tables
-from query_data import update_or_insert_instagram_data_from_csv, update_or_insert_tiktok_data_from_csv
+from query_data import update_or_insert_instagram_data_from_csv, update_or_insert_tiktok_data_from_csv, get_insta_stats, get_tiktok_stats
 from query_data import query_insta_user_data, query_tiktok_user_data
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -135,11 +135,13 @@ async def scrape_instagram():
 
 @app.get("/tiktok/influencers")
 async def get_tiktok_influencers():
-    return await csv_to_json('scraped_data_tiktok.csv')
+    mysql_pool = await get_mysql_pool()
+    return await get_tiktok_stats(mysql_pool)
 
 @app.get("/instagram/influencers")
 async def get_instagram_influencers():
-    return await csv_to_json('scraped_data_instagram.csv')
+    mysql_pool = await get_mysql_pool()
+    return await get_insta_stats(mysql_pool)
 
 @app.get("/instagram/{username}")
 async def get_instagram_data(username: str):
@@ -226,9 +228,9 @@ async def get_trend():
     await redis.set(cache_key, json.dumps(data), expire=25920)
     return data
 
-scheduler.add_job(scrape_instagram, 'cron', hour=0, minute=0)
+scheduler.add_job(scrape_instagram, 'cron', hour=1, minute=0)
 
-scheduler.add_job(scrape_tiktok, 'cron', hour=0, minute=10)
+scheduler.add_job(scrape_tiktok, 'cron', hour=2, minute=10)
 
 @app.on_event("startup")
 async def start_scheduler():
