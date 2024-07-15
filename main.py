@@ -7,7 +7,7 @@ from hashtag import hashtag
 from business_discovery import business_discovery, fetch_business_discovery
 from social_scrape import tiktok_scrap, instagram_scrap
 from news import get_instagram_news, newsapi, news_data, serpapi, news_username
-from summarizer import summary
+# from summarizer import summary
 from location import get_city, get_location, get_city_url
 from trend import get_trend_1
 from database import get_redis, get_mysql_pool, create_insta_table, create_tiktok_tables
@@ -202,10 +202,10 @@ async def get_news(media: Optional[str] = None, q: Optional[str] = None, topic: 
 async def get_news_username():
     return await news_username()
 
-@app.post("/summary")
-async def get_summary(article_data: Article):
-    article = article_data.article
-    return await summary(article)
+# @app.post("/summary")
+# async def get_summary(article_data: Article):
+#     article = article_data.article
+#     return await summary(article)
 
 @app.get("/city")
 async def get_city_data(q: Optional[str] = None):
