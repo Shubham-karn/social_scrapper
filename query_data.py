@@ -148,27 +148,20 @@ async def query_tiktok_user_data(pg_pool, username):
 
 
 async def update_or_insert_instagram_data_from_csv(pg_pool, csv_file_path):
-    check_user_sql = """
-    SELECT ID FROM instagram_stats WHERE Username = $1;
-    """
-
-    insert_user_sql = """
+    upsert_user_sql = """
     INSERT INTO instagram_stats (Username, Category, Country, ImageURL)
     VALUES ($1, $2, $3, $4)
-    ON CONFLICT (Username) DO UPDATE
-    SET Category = EXCLUDED.Category, Country = EXCLUDED.Country, ImageURL = EXCLUDED.ImageURL;
+    ON CONFLICT (Username) 
+    DO UPDATE SET Category = $2, Country = $3, ImageURL = $4;
     """
-
     insert_rank_sql = """
     INSERT INTO rank_insta (InstagramStatsID, Position, RecordedAt)
     VALUES ((SELECT ID FROM instagram_stats WHERE Username = $1), $2, NOW());
     """
-
     insert_followers_sql = """
     INSERT INTO followers_insta (InstagramStatsID, FollowersCount, RecordedAt)
     VALUES ((SELECT ID FROM instagram_stats WHERE Username = $1), $2, NOW());
     """
-
     insert_engagement_sql = """
     INSERT INTO engagement_history (InstagramStatsID, EngagementRate, RecordedAt)
     VALUES ((SELECT ID FROM instagram_stats WHERE Username = $1), $2, NOW());
@@ -181,96 +174,85 @@ async def update_or_insert_instagram_data_from_csv(pg_pool, csv_file_path):
         async with pg_pool.acquire() as conn:
             async with conn.transaction():
                 for index, row in df.iterrows():
-                    # Check if the user exists and insert/update in one step
-                    await conn.execute(insert_user_sql, 
+                    # Upsert user data
+                    await conn.execute(upsert_user_sql, 
                         row['Username'], row['Category'], row['Country'], row['img']
                     )
 
-                    # Insert new rank_insta record with current timestamp
+                    # Always insert new rank, followers, and engagement records
                     await conn.execute(insert_rank_sql, 
                         row['Username'], row['Rank']
                     )
-
-                    # Insert new followers_insta record with current timestamp
                     await conn.execute(insert_followers_sql, 
                         row['Username'], row['Followers']
                     )
-
-                    # Insert new engagement_history record with current timestamp
                     await conn.execute(insert_engagement_sql, 
                         row['Username'], row['Engagement']
                     )
 
-            logging.info("Instagram data updated successfully from CSV.")
+                logging.info("Instagram data updated successfully from CSV.")
     except Exception as e:
         logging.error(f"Failed to update or insert Instagram data from CSV: {e}")
 
 async def update_or_insert_tiktok_data_from_csv(pg_pool, csv_file_path):
-    insert_user_sql = """
+    upsert_user_sql = """
     INSERT INTO tiktok_stats (Username, ImageURL)
     VALUES ($1, $2)
-    ON CONFLICT (Username) DO UPDATE
-    SET ImageURL = EXCLUDED.ImageURL;
+    ON CONFLICT (Username) 
+    DO UPDATE SET ImageURL = $2
+    RETURNING ID;
     """
-    
+
     insert_rank_sql = """
     INSERT INTO rank_tiktok (TikTokStatsID, Position, RecordedAt)
-    VALUES ((SELECT ID FROM tiktok_stats WHERE Username = $1), $2, NOW());
+    VALUES ($1, $2, NOW());
     """
-    
+
     insert_comments_sql = """
     INSERT INTO comments_history (TikTokStatsID, CommentsCount, RecordedAt)
-    VALUES ((SELECT ID FROM tiktok_stats WHERE Username = $1), $2, NOW());
+    VALUES ($1, $2, NOW());
     """
-    
+
     insert_followers_sql = """
     INSERT INTO followers_tiktok (TikTokStatsID, FollowersCount, RecordedAt)
-    VALUES ((SELECT ID FROM tiktok_stats WHERE Username = $1), $2, NOW());
+    VALUES ($1, $2, NOW());
     """
-    
+
     insert_likes_sql = """
     INSERT INTO likes_history (TikTokStatsID, LikesCount, RecordedAt)
-    VALUES ((SELECT ID FROM tiktok_stats WHERE Username = $1), $2, NOW());
+    VALUES ($1, $2, NOW());
     """
-    
+
     insert_views_sql = """
     INSERT INTO views_history (TikTokStatsID, ViewsCount, RecordedAt)
-    VALUES ((SELECT ID FROM tiktok_stats WHERE Username = $1), $2, NOW());
+    VALUES ($1, $2, NOW());
     """
-    
+
     insert_shares_sql = """
     INSERT INTO shares_history (TikTokStatsID, SharesCount, RecordedAt)
-    VALUES ((SELECT ID FROM tiktok_stats WHERE Username = $1), $2, NOW());
+    VALUES ($1, $2, NOW());
     """
-    
+
     df = pd.read_csv(csv_file_path)
     df = df.where(pd.notnull(df), None)
-    
+
     try:
         async with pg_pool.acquire() as conn:
             async with conn.transaction():
                 for index, row in df.iterrows():
-                    # Insert or update user in tiktok_stats
-                    await conn.execute(insert_user_sql, row['Username'], row['img'])
-                    
-                    # Insert new rank_tiktok record
-                    await conn.execute(insert_rank_sql, row['Username'], row['Rank'])
-                    
-                    # Insert new comments_history record
-                    await conn.execute(insert_comments_sql, row['Username'], row['Comments'])
-                    
-                    # Insert new followers_tiktok record
-                    await conn.execute(insert_followers_sql, row['Username'], row['Followers'])
-                    
-                    # Insert new likes_history record
-                    await conn.execute(insert_likes_sql, row['Username'], row['Likes'])
-                    
-                    # Insert new views_history record
-                    await conn.execute(insert_views_sql, row['Username'], row['Views'])
-                    
-                    # Insert new shares_history record
-                    await conn.execute(insert_shares_sql, row['Username'], row['Shares'])
-                
+                    # Upsert user data and get the user ID
+                    user_id = await conn.fetchval(upsert_user_sql, 
+                        row['Username'], row['img']
+                    )
+
+                    # Always insert new records for all metrics
+                    await conn.execute(insert_rank_sql, user_id, row['Rank'])
+                    await conn.execute(insert_comments_sql, user_id, row['Comments'])
+                    await conn.execute(insert_followers_sql, user_id, row['Followers'])
+                    await conn.execute(insert_likes_sql, user_id, row['Likes'])
+                    await conn.execute(insert_views_sql, user_id, row['Views'])
+                    await conn.execute(insert_shares_sql, user_id, row['Shares'])
+
             logging.info("TikTok data updated successfully from CSV.")
     except Exception as e:
         logging.error(f"Failed to update or insert TikTok data from CSV: {e}")

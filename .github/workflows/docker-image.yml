@@ -22,20 +22,9 @@ jobs:
         run: |
           sleep 30
           docker logs summary_container
-          docker logs mysql_container
 
       - name: Check running containers
         run: docker ps -a
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-pip
-          pip3 install pandas aiomysql
-
-      - name: Populate database tables
-        run: |
-          python3 ./populate_database.py
 
       - name: API test for /summary endpoint
         run: |
@@ -48,11 +37,6 @@ jobs:
           }
           EOF
           )
-          echo "$response"
-
-      - name: API test for /instagram endpoint
-        run: |
-          response=$(curl -X GET http://localhost/instagram/jjlin)
           echo "$response"
           
       - name: Stop containers

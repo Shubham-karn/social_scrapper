@@ -21,7 +21,7 @@ async def populate_insta_database():
         host=os.getenv('DB_HOST'), 
         port=os.getenv('DB_PORT'),
         database=os.getenv('DB_NAME'),
-        statement_cache_size=0  # Disable statement cache
+        statement_cache_size=0  
     )
     try:
         for index, row in df_insta.iterrows():
@@ -70,7 +70,7 @@ async def populate_tiktok_database():
         host=os.getenv('DB_HOST'), 
         port=os.getenv('DB_PORT'),
         database=os.getenv('DB_NAME'),
-        statement_cache_size=0  # Disable statement cache
+        statement_cache_size=0 
     )
     try:
         for index, row in df_tiktok.iterrows():
