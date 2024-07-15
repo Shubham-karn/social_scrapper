@@ -12,7 +12,7 @@ from location import get_city, get_location, get_city_url
 from trend import get_trend_1
 from database import get_redis, get_mysql_pool, create_insta_table, create_tiktok_tables
 from query_data import update_or_insert_instagram_data_from_csv, update_or_insert_tiktok_data_from_csv, get_insta_stats, get_tiktok_stats
-from query_data import query_insta_user_data, query_tiktok_user_data
+from query_data import query_insta_user_data, query_tiktok_user_data, delete_old_insta_data, delete_old_tiktok_data
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 app = FastAPI()
@@ -116,6 +116,7 @@ async def scrape_tiktok():
     mysql_pool = await get_mysql_pool()
     data = await tiktok_scrap()
     await update_or_insert_tiktok_data_from_csv(mysql_pool, 'scraped_data_tiktok.csv')
+    await delete_old_tiktok_data(mysql_pool)
     await redis.set(cache_key, json.dumps(data), expire=86395)
     return data
 
@@ -128,6 +129,7 @@ async def scrape_instagram():
     mysql_pool = await get_mysql_pool()
     data = await instagram_scrap()
     await update_or_insert_instagram_data_from_csv(mysql_pool, 'scraped_data_instagram.csv')
+    await delete_old_insta_data(mysql_pool)
     await redis.set(cache_key, json.dumps(data), expire=86395)
     return data
 

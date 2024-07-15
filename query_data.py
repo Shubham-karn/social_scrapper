@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 import logging
 import pandas as pd
@@ -455,3 +455,76 @@ async def get_tiktok_stats(pg_pool):
             "status_code": 500,
             "error": str(e)
         }
+
+async def delete_old_insta_data(mysql_pool):
+    one_month_ago = datetime.utcnow() - timedelta(days=30)
+
+    delete_queries = [
+        "followers_insta",
+        "engagement_history",
+        "rank_insta"
+    ]
+
+    try:
+        async with mysql_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                for table in delete_queries:
+                    # Delete old data
+                    delete_sql = f"""
+                    DELETE FROM {table}
+                    WHERE RecordedAt < %s;
+                    """
+                    await cursor.execute(delete_sql, (one_month_ago,))
+                    deleted_count = cursor.rowcount
+                    logging.info(f"Deleted {deleted_count} old records from {table}")
+
+                    # Reset the auto-increment
+                    reset_auto_increment_sql = f"""
+                    ALTER TABLE {table} AUTO_INCREMENT = 1;
+                    """
+                    await cursor.execute(reset_auto_increment_sql)
+                    logging.info(f"Reset auto-increment for {table}")
+
+                await conn.commit()
+
+        logging.info("Old Instagram data deletion and auto-increment reset completed successfully.")
+    except Exception as e:
+        logging.error(f"Failed to delete old Instagram data or reset auto-increments: {e}")
+
+async def delete_old_tiktok_data(pg_pool):
+    one_month_ago = datetime.utcnow() - timedelta(days=30)
+
+    delete_queries = [
+        ("comments_history", "CommentsCount"),
+        ("followers_tiktok", "FollowersCount"),
+        ("likes_history", "LikesCount"),
+        ("views_history", "ViewsCount"),
+        ("shares_history", "SharesCount"),
+        ("rank_tiktok", "Position")
+    ]
+
+    try:
+        async with pg_pool.acquire() as conn:
+            async with conn.transaction():
+                for table, count_column in delete_queries:
+                    # Delete old data
+                    delete_sql = f"""
+                    DELETE FROM {table}
+                    WHERE RecordedAt < $1;
+                    """
+                    result = await conn.execute(delete_sql, one_month_ago)
+                    deleted_count = int(result.split()[-1])
+                    logging.info(f"Deleted {deleted_count} old records from {table}")
+
+                    # Reset the sequence
+                    reset_sequence_sql = f"""
+                    SELECT setval(pg_get_serial_sequence('{table}', 'id'), 
+                                  COALESCE((SELECT MAX(id) FROM {table}), 0) + 1, 
+                                  false);
+                    """
+                    await conn.execute(reset_sequence_sql)
+                    logging.info(f"Reset sequence for {table}")
+
+        logging.info("Old TikTok data deletion and sequence reset completed successfully.")
+    except Exception as e:
+        logging.error(f"Failed to delete old TikTok data or reset sequences: {e}")

@@ -2,8 +2,8 @@ import aioredis
 import asyncpg
 import logging
 import asyncio
-import os
 import dotenv
+import os
 
 dotenv.load_dotenv()
 
@@ -12,7 +12,7 @@ mysql_pool = None
 
 async def get_redis():
     return await aioredis.create_redis_pool(
-        'redis://localhost:6379', encoding='utf8'
+        'redis://redis_container:6379', encoding='utf8'
     )
 
 async def get_mysql_pool():
@@ -25,7 +25,7 @@ async def get_mysql_pool():
                 mysql_pool = await asyncpg.create_pool(
                     host= os.getenv('DB_HOST'),
                     port= os.getenv('DB_PORT'),
-                    user=os.getenv('DB_USER'),
+                    user= os.getenv('DB_USER'),
                     password=os.getenv('DB_PASSWORD'),
                     database=os.getenv('DB_NAME')
                 )
@@ -179,6 +179,6 @@ async def main():
     await create_insta_table(mysql_pool)
     await create_tiktok_tables(mysql_pool)
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    asyncio.run(main())
+# if __name__ == "__main__":
+#     logging.basicConfig(level=logging.INFO)
+#     asyncio.run(main())

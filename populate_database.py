@@ -129,5 +129,5 @@ async def populate_tiktok_database():
         await conn.close()
 
 # Run the main functions to populate databases
-asyncio.run(populate_tiktok_database())
-asyncio.run(populate_insta_database())
+# asyncio.run(populate_tiktok_database())
+# asyncio.run(populate_insta_database())
