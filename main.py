@@ -109,29 +109,33 @@ async def get_bulk_business_discovery(usernames: str):
 
 @app.get("/scrape_tiktok")
 async def scrape_tiktok():
-    cache_key = "scrape-tiktok"
-    cached_data = await redis.get(cache_key)
-    if cached_data:
-        return json.loads(cached_data)
+    # cache_key = "scrape-tiktok"
+    # cached_data = await redis.get(cache_key)
+    # if cached_data:
+    #     return json.loads(cached_data)
     
     mysql_pool = await get_mysql_pool()
-    data = await tiktok_scrap()
+    # data = await tiktok_scrap()
     await update_or_insert_tiktok_data_from_csv(mysql_pool, 'scraped_data_tiktok.csv')
-    await redis.set(cache_key, json.dumps(data), expire=86400)
-    return data
+    # await redis.set(cache_key, json.dumps(data), expire=86400)
+    return {
+        "status_code": 200,
+    }
 
 @app.get("/scrape_instagram")
 async def scrape_instagram():
     cache_key = "scrape-instagram"
-    cached_data = await redis.get(cache_key)
-    if cached_data:
-        return json.loads(cached_data)
+    # cached_data = await redis.get(cache_key)
+    # if cached_data:
+    #     return json.loads(cached_data)
     
     mysql_pool = await get_mysql_pool()
-    data = await instagram_scrap()
+    # data = await instagram_scrap()
     await update_or_insert_instagram_data_from_csv(mysql_pool, 'scraped_data_instagram.csv')
-    await redis.set(cache_key, json.dumps(data), expire=86400)
-    return data
+    # await redis.set(cache_key, json.dumps(data), expire=86400)
+    return {
+        "status_code": 200,
+    }
 
 @app.get("/tiktok/influencers")
 async def get_tiktok_influencers():

@@ -1,14 +1,18 @@
 import aioredis
-import aiomysql
+import asyncpg
 import logging
 import asyncio
+import os
+import dotenv
+
+dotenv.load_dotenv()
 
 redis = None
 mysql_pool = None
 
 async def get_redis():
     return await aioredis.create_redis_pool(
-        'redis://redis_container:6379', encoding='utf8'
+        'redis://localhost:6379', encoding='utf8'
     )
 
 async def get_mysql_pool():
@@ -18,14 +22,12 @@ async def get_mysql_pool():
         while retry_count > 0:
             try:
                 logging.info("Creating MySQL connection pool...")
-                mysql_pool = await aiomysql.create_pool(
-                    host='mysql_container',
-                    port=3306,
-                    user='root',
-                    password='root',
-                    db='summarizer',
-                    charset='utf8',
-                    autocommit=True,
+                mysql_pool = await asyncpg.create_pool(
+                    host= os.getenv('DB_HOST'),
+                    port= os.getenv('DB_PORT'),
+                    user=os.getenv('DB_USER'),
+                    password=os.getenv('DB_PASSWORD'),
+                    database=os.getenv('DB_NAME')
                 )
                 logging.info("MySQL connection pool created.")
                 break
@@ -40,7 +42,7 @@ async def get_mysql_pool():
 async def create_insta_table(mysql_pool):
     create_instagram_stats_sql = """
     CREATE TABLE IF NOT EXISTS instagram_stats (
-        ID INT AUTO_INCREMENT PRIMARY KEY,
+        ID SERIAL PRIMARY KEY,
         Username VARCHAR(255) NOT NULL UNIQUE,
         Category VARCHAR(255),
         Country VARCHAR(255),
@@ -50,7 +52,7 @@ async def create_insta_table(mysql_pool):
 
     create_followers_insta_sql = """
     CREATE TABLE IF NOT EXISTS followers_insta (
-        ID INT AUTO_INCREMENT PRIMARY KEY,
+        ID SERIAL PRIMARY KEY,
         InstagramStatsID INT,
         FollowersCount VARCHAR(255) NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -60,7 +62,7 @@ async def create_insta_table(mysql_pool):
 
     create_engagement_history_sql = """
     CREATE TABLE IF NOT EXISTS engagement_history (
-        ID INT AUTO_INCREMENT PRIMARY KEY,
+        ID SERIAL PRIMARY KEY,
         InstagramStatsID INT,
         EngagementRate VARCHAR(255) NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -70,7 +72,7 @@ async def create_insta_table(mysql_pool):
 
     create_rank_insta_sql = """
     CREATE TABLE IF NOT EXISTS rank_insta (
-        ID INT AUTO_INCREMENT PRIMARY KEY,
+        ID SERIAL PRIMARY KEY,
         InstagramStatsID INT,
         Position INT NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -80,20 +82,18 @@ async def create_insta_table(mysql_pool):
 
     try:
         async with mysql_pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(create_instagram_stats_sql)
-                await cur.execute(create_followers_insta_sql)
-                await cur.execute(create_engagement_history_sql)
-                await cur.execute(create_rank_insta_sql)
-                await conn.commit()
-                logging.info("Instagram tables created successfully.")
+            await conn.execute(create_instagram_stats_sql)
+            await conn.execute(create_followers_insta_sql)
+            await conn.execute(create_engagement_history_sql)
+            await conn.execute(create_rank_insta_sql)
+            logging.info("Instagram tables created successfully.")
     except Exception as e:
         logging.error(f"Failed to create Instagram tables: {e}")
 
-async def create_tiktok_tables(mysql_pool):
+async def create_tiktok_tables(pg_pool):
     create_tiktok_stats_sql = """
     CREATE TABLE IF NOT EXISTS tiktok_stats (
-        ID INT AUTO_INCREMENT PRIMARY KEY,
+        ID SERIAL PRIMARY KEY,
         Username VARCHAR(255) NOT NULL UNIQUE,
         ImageURL VARCHAR(255)
     );
@@ -101,7 +101,7 @@ async def create_tiktok_tables(mysql_pool):
 
     create_comments_history_sql = """
     CREATE TABLE IF NOT EXISTS comments_history (
-        ID INT AUTO_INCREMENT PRIMARY KEY,
+        ID SERIAL PRIMARY KEY,
         TikTokStatsID INT,
         CommentsCount VARCHAR(255) NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -111,7 +111,7 @@ async def create_tiktok_tables(mysql_pool):
 
     create_followers_tiktok_sql = """
     CREATE TABLE IF NOT EXISTS followers_tiktok (
-        ID INT AUTO_INCREMENT PRIMARY KEY,
+        ID SERIAL PRIMARY KEY,
         TikTokStatsID INT,
         FollowersCount VARCHAR(255) NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -121,7 +121,7 @@ async def create_tiktok_tables(mysql_pool):
 
     create_likes_history_sql = """
     CREATE TABLE IF NOT EXISTS likes_history (
-        ID INT AUTO_INCREMENT PRIMARY KEY,
+        ID SERIAL PRIMARY KEY,
         TikTokStatsID INT,
         LikesCount VARCHAR(255) NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -131,7 +131,7 @@ async def create_tiktok_tables(mysql_pool):
 
     create_views_history_sql = """
     CREATE TABLE IF NOT EXISTS views_history (
-        ID INT AUTO_INCREMENT PRIMARY KEY,
+        ID SERIAL PRIMARY KEY,
         TikTokStatsID INT,
         ViewsCount VARCHAR(255) NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -141,7 +141,7 @@ async def create_tiktok_tables(mysql_pool):
 
     create_shares_history_sql = """
     CREATE TABLE IF NOT EXISTS shares_history (
-        ID INT AUTO_INCREMENT PRIMARY KEY,
+        ID SERIAL PRIMARY KEY,
         TikTokStatsID INT,
         SharesCount VARCHAR(255) NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -151,7 +151,7 @@ async def create_tiktok_tables(mysql_pool):
 
     create_rank_tiktok_sql = """
     CREATE TABLE IF NOT EXISTS rank_tiktok (
-        ID INT AUTO_INCREMENT PRIMARY KEY,
+        ID SERIAL PRIMARY KEY,
         TikTokStatsID INT,
         Position INT NOT NULL,
         RecordedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -160,17 +160,15 @@ async def create_tiktok_tables(mysql_pool):
     """
 
     try:
-        async with mysql_pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(create_tiktok_stats_sql)
-                await cur.execute(create_comments_history_sql)
-                await cur.execute(create_followers_tiktok_sql)
-                await cur.execute(create_likes_history_sql)
-                await cur.execute(create_views_history_sql)
-                await cur.execute(create_shares_history_sql)
-                await cur.execute(create_rank_tiktok_sql)
-                await conn.commit()
-                logging.info("TikTok tables created successfully.")
+        async with pg_pool.acquire() as conn:
+            await conn.execute(create_tiktok_stats_sql)
+            await conn.execute(create_comments_history_sql)
+            await conn.execute(create_followers_tiktok_sql)
+            await conn.execute(create_likes_history_sql)
+            await conn.execute(create_views_history_sql)
+            await conn.execute(create_shares_history_sql)
+            await conn.execute(create_rank_tiktok_sql)
+            logging.info("TikTok tables created successfully.")
     except Exception as e:
         logging.error(f"Failed to create TikTok tables: {e}")
 

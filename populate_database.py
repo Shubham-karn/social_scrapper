@@ -1,6 +1,10 @@
 import pandas as pd
 import asyncio
-import aiomysql
+import asyncpg
+import os
+import dotenv
+
+dotenv.load_dotenv()
 
 # Load CSV files
 df_insta = pd.read_csv('./scraped_data_instagram.csv')
@@ -11,107 +15,118 @@ df_insta.fillna(value={'Username': 'N/A', 'Category': 'N/A', 'Country': 'N/A', '
 df_tiktok.fillna(value={'Username': 'N/A', 'img': 'N/A'}, inplace=True)
 
 async def populate_insta_database():
-    conn = await aiomysql.connect(user='root', password='root', host='localhost', port=3306, db='summarizer')
-    async with conn.cursor() as cursor:
+    conn = await asyncpg.connect(
+        user=os.getenv('DB_USER'), 
+        password=os.getenv('DB_PASSWORD'), 
+        host=os.getenv('DB_HOST'), 
+        port=os.getenv('DB_PORT'),
+        database=os.getenv('DB_NAME'),
+        statement_cache_size=0  # Disable statement cache
+    )
+    try:
         for index, row in df_insta.iterrows():
             # Insert or update Instagram stats
-            await cursor.execute("""
+            await conn.execute("""
                 INSERT INTO instagram_stats (Username, Category, Country, ImageURL)
-                VALUES (%s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE Category=VALUES(Category), Country=VALUES(Country), ImageURL=VALUES(ImageURL)
-            """, (row['Username'], row['Category'], row['Country'], row['img']))
-            await conn.commit()
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (Username) DO UPDATE 
+                SET Category = EXCLUDED.Category, 
+                    Country = EXCLUDED.Country, 
+                    ImageURL = EXCLUDED.ImageURL
+            """, row['Username'], row['Category'], row['Country'], row['img'])
 
             # Get the Instagram stats ID
-            await cursor.execute("SELECT ID FROM instagram_stats WHERE Username = %s", (row['Username'],))
-            instagram_stats_id = await cursor.fetchone()
-            if instagram_stats_id:
-                instagram_stats_id = instagram_stats_id[0]
+            instagram_stats_id = await conn.fetchval(
+                "SELECT ID FROM instagram_stats WHERE Username = $1", 
+                row['Username']
+            )
 
+            if instagram_stats_id:
                 # Insert followers count
-                await cursor.execute("""
+                await conn.execute("""
                     INSERT INTO followers_insta (InstagramStatsID, FollowersCount, RecordedAt)
-                    VALUES (%s, %s, NOW())
-                """, (instagram_stats_id, row['Followers']))
-                await conn.commit()
+                    VALUES ($1, $2, NOW())
+                """, instagram_stats_id, row['Followers'])
 
                 # Insert engagement rate
-                await cursor.execute("""
+                await conn.execute("""
                     INSERT INTO engagement_history (InstagramStatsID, EngagementRate, RecordedAt)
-                    VALUES (%s, %s, NOW())
-                """, (instagram_stats_id, row['Engagement']))
-                await conn.commit()
+                    VALUES ($1, $2, NOW())
+                """, instagram_stats_id, row['Engagement'])
 
                 # Insert rank
-                await cursor.execute("""
+                await conn.execute("""
                     INSERT INTO rank_insta (InstagramStatsID, Position, RecordedAt)
-                    VALUES (%s, %s, NOW())
-                """, (instagram_stats_id, row['Rank']))
-                await conn.commit()
+                    VALUES ($1, $2, NOW())
+                """, instagram_stats_id, row['Rank'])
 
-    conn.close()
+    finally:
+        await conn.close()
 
 async def populate_tiktok_database():
-    conn = await aiomysql.connect(user='root', password='root', host='localhost', port=3306, db='summarizer')
-    async with conn.cursor() as cursor:
+    conn = await asyncpg.connect(
+        user=os.getenv('DB_USER'), 
+        password=os.getenv('DB_PASSWORD'), 
+        host=os.getenv('DB_HOST'), 
+        port=os.getenv('DB_PORT'),
+        database=os.getenv('DB_NAME'),
+        statement_cache_size=0  # Disable statement cache
+    )
+    try:
         for index, row in df_tiktok.iterrows():
             # Insert or update TikTok stats
-            await cursor.execute("""
+            await conn.execute("""
                 INSERT INTO tiktok_stats (Username, ImageURL)
-                VALUES (%s, %s)
-                ON DUPLICATE KEY UPDATE ImageURL=VALUES(ImageURL)
-            """, (row['Username'], row['img']))
-            await conn.commit()
+                VALUES ($1, $2)
+                ON CONFLICT (Username) DO UPDATE 
+                SET ImageURL = EXCLUDED.ImageURL
+            """, row['Username'], row['img'])
 
             # Get the TikTok stats ID
-            await cursor.execute("SELECT ID FROM tiktok_stats WHERE Username = %s", (row['Username'],))
-            tiktok_stats_id = await cursor.fetchone()
-            if tiktok_stats_id:
-                tiktok_stats_id = tiktok_stats_id[0]
+            tiktok_stats_id = await conn.fetchval(
+                "SELECT ID FROM tiktok_stats WHERE Username = $1", 
+                row['Username']
+            )
 
+            if tiktok_stats_id:
                 # Insert comments count
-                await cursor.execute("""
+                await conn.execute("""
                     INSERT INTO comments_history (TikTokStatsID, CommentsCount, RecordedAt)
-                    VALUES (%s, %s, NOW())
-                """, (tiktok_stats_id, row['Comments']))
-                await conn.commit()
+                    VALUES ($1, $2, NOW())
+                """, tiktok_stats_id, row['Comments'])
 
                 # Insert followers count
-                await cursor.execute("""
+                await conn.execute("""
                     INSERT INTO followers_tiktok (TikTokStatsID, FollowersCount, RecordedAt)
-                    VALUES (%s, %s, NOW())
-                """, (tiktok_stats_id, row['Followers']))
-                await conn.commit()
+                    VALUES ($1, $2, NOW())
+                """, tiktok_stats_id, row['Followers'])
 
                 # Insert likes count
-                await cursor.execute("""
+                await conn.execute("""
                     INSERT INTO likes_history (TikTokStatsID, LikesCount, RecordedAt)
-                    VALUES (%s, %s, NOW())
-                """, (tiktok_stats_id, row['Likes']))
-                await conn.commit()
+                    VALUES ($1, $2, NOW())
+                """, tiktok_stats_id, row['Likes'])
 
                 # Insert views count
-                await cursor.execute("""
+                await conn.execute("""
                     INSERT INTO views_history (TikTokStatsID, ViewsCount, RecordedAt)
-                    VALUES (%s, %s, NOW())
-                """, (tiktok_stats_id, row['Views']))
-                await conn.commit()
+                    VALUES ($1, $2, NOW())
+                """, tiktok_stats_id, row['Views'])
 
                 # Insert shares count
-                await cursor.execute("""
+                await conn.execute("""
                     INSERT INTO shares_history (TikTokStatsID, SharesCount, RecordedAt)
-                    VALUES (%s, %s, NOW())
-                """, (tiktok_stats_id, row['Shares']))
-                await conn.commit()
+                    VALUES ($1, $2, NOW())
+                """, tiktok_stats_id, row['Shares'])
 
                 # Insert rank
-                await cursor.execute("""
+                await conn.execute("""
                     INSERT INTO rank_tiktok (TikTokStatsID, Position, RecordedAt)
-                    VALUES (%s, %s, NOW())
-                """, (tiktok_stats_id, row['Rank']))
-                await conn.commit()
+                    VALUES ($1, $2, NOW())
+                """, tiktok_stats_id, row['Rank'])
 
-    conn.close()
+    finally:
+        await conn.close()
 
 # Run the main functions to populate databases
 asyncio.run(populate_tiktok_database())
