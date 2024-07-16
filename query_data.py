@@ -38,25 +38,30 @@ async def query_insta_user_data(pg_pool, username):
                 }
                 
                 for row in results:
-                    date_str = row['followersrecordedat'].date().isoformat()
-                    if date_str not in user_data["HistoricalData"]:
-                        user_data["HistoricalData"][date_str] = {
-                            "FollowersCount": None,
-                            "EngagementRate": None,
-                            "Position": None
-                        }
+                    recorded_dates = [
+                        row['followersrecordedat'],
+                        row['engagementrecordedat'],
+                        row['rankrecordedat']
+                    ]
+                    recorded_dates = [d for d in recorded_dates if d is not None]
                     
-                    if row['followerscount'] is not None:
-                        user_data["HistoricalData"][date_str]["FollowersCount"] = row['followerscount']
-                    
-                    if row['engagementrate'] is not None:
-                        user_data["HistoricalData"][date_str]["EngagementRate"] = row['engagementrate']
-                    
-                    if row['position'] is not None:
-                        user_data["HistoricalData"][date_str]["Position"] = row['position']
-                
+                    for date in recorded_dates:
+                        date_str = date.date().isoformat()
+                        
+                        if row['followersrecordedat'] and row['followersrecordedat'].date() == date.date():
+                            user_data["HistoricalData"][date_str]["FollowersCount"] = row['followerscount']
+                        
+                        if row['engagementrecordedat'] and row['engagementrecordedat'].date() == date.date():
+                            user_data["HistoricalData"][date_str]["EngagementRate"] = row['engagementrate']
+                        
+                        if row['rankrecordedat'] and row['rankrecordedat'].date() == date.date():
+                            user_data["HistoricalData"][date_str]["Position"] = row['position']
+
                 # Convert defaultdict to regular dict and sort by date
                 user_data["HistoricalData"] = dict(sorted(user_data["HistoricalData"].items(), reverse=True))
+                
+                # Remove empty date entries
+                user_data["HistoricalData"] = {k: v for k, v in user_data["HistoricalData"].items() if v}
                 
                 # Use json.dumps with the custom serializer to handle datetime objects
                 return {
@@ -72,7 +77,6 @@ async def query_insta_user_data(pg_pool, username):
             "status_code": 500,
             "error": str(e)
         }
-
 
 async def query_tiktok_user_data(pg_pool, username):
     query_sql = """
@@ -92,6 +96,7 @@ async def query_tiktok_user_data(pg_pool, username):
     WHERE t.Username = $1
     ORDER BY ft.RecordedAt DESC, c.RecordedAt DESC, l.RecordedAt DESC, v.RecordedAt DESC, s.RecordedAt DESC, r.RecordedAt DESC;
     """
+
     try:
         async with pg_pool.acquire() as conn:
             results = await conn.fetch(query_sql, username)
@@ -104,32 +109,42 @@ async def query_tiktok_user_data(pg_pool, username):
                 }
                 
                 for row in results:
-                    date_str = row['followersrecordedat'].date().isoformat()
-                    if date_str not in user_data["HistoricalData"]:
-                        user_data["HistoricalData"][date_str] = {
-                            "Position": None,
-                            "CommentsCount": None,
-                            "FollowersCount": None,
-                            "LikesCount": None,
-                            "ViewsCount": None,
-                            "SharesCount": None
-                        }
+                    recorded_dates = [
+                        row['followersrecordedat'],
+                        row['commentsrecordedat'],
+                        row['likesrecordedat'],
+                        row['viewsrecordedat'],
+                        row['sharesrecordedat'],
+                        row['rankrecordedat']
+                    ]
+                    recorded_dates = [d for d in recorded_dates if d is not None]
                     
-                    if row['position'] is not None:
-                        user_data["HistoricalData"][date_str]["Position"] = row['position']
-                    if row['commentscount'] is not None:
-                        user_data["HistoricalData"][date_str]["CommentsCount"] = row['commentscount']
-                    if row['followerscount'] is not None:
-                        user_data["HistoricalData"][date_str]["FollowersCount"] = row['followerscount']
-                    if row['likescount'] is not None:
-                        user_data["HistoricalData"][date_str]["LikesCount"] = row['likescount']
-                    if row['viewscount'] is not None:
-                        user_data["HistoricalData"][date_str]["ViewsCount"] = row['viewscount']
-                    if row['sharescount'] is not None:
-                        user_data["HistoricalData"][date_str]["SharesCount"] = row['sharescount']
-                
+                    for date in recorded_dates:
+                        date_str = date.date().isoformat()
+                        
+                        if row['followersrecordedat'] and row['followersrecordedat'].date() == date.date():
+                            user_data["HistoricalData"][date_str]["FollowersCount"] = row['followerscount']
+                        
+                        if row['commentsrecordedat'] and row['commentsrecordedat'].date() == date.date():
+                            user_data["HistoricalData"][date_str]["CommentsCount"] = row['commentscount']
+                        
+                        if row['likesrecordedat'] and row['likesrecordedat'].date() == date.date():
+                            user_data["HistoricalData"][date_str]["LikesCount"] = row['likescount']
+                        
+                        if row['viewsrecordedat'] and row['viewsrecordedat'].date() == date.date():
+                            user_data["HistoricalData"][date_str]["ViewsCount"] = row['viewscount']
+                        
+                        if row['sharesrecordedat'] and row['sharesrecordedat'].date() == date.date():
+                            user_data["HistoricalData"][date_str]["SharesCount"] = row['sharescount']
+                        
+                        if row['rankrecordedat'] and row['rankrecordedat'].date() == date.date():
+                            user_data["HistoricalData"][date_str]["Position"] = row['position']
+
                 # Convert defaultdict to regular dict and sort by date
                 user_data["HistoricalData"] = dict(sorted(user_data["HistoricalData"].items(), reverse=True))
+                
+                # Remove empty date entries
+                user_data["HistoricalData"] = {k: v for k, v in user_data["HistoricalData"].items() if v}
                 
                 # Use json.dumps with the custom serializer to handle datetime objects
                 return {
@@ -144,7 +159,7 @@ async def query_tiktok_user_data(pg_pool, username):
         return {
             "status_code": 500,
             "error": str(e)
-        } 
+        }
 
 
 async def update_or_insert_instagram_data_from_csv(pg_pool, csv_file_path):
