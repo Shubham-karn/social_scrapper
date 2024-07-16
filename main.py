@@ -230,7 +230,7 @@ async def get_trend():
 
 scheduler.add_job(scrape_instagram, 'cron', hour=00, minute=10)
 
-scheduler.add_job(scrape_tiktok, 'cron', hour=00, minute=20)
+scheduler.add_job(scrape_tiktok, 'cron', hour=00, minute=40)
 
 @app.on_event("startup")
 async def start_scheduler():
