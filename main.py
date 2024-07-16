@@ -228,9 +228,9 @@ async def get_trend():
     await redis.set(cache_key, json.dumps(data), expire=25920)
     return data
 
-scheduler.add_job(scrape_instagram, 'cron', hour=17, minute=10)
+scheduler.add_job(scrape_instagram, 'cron', hour=00, minute=10)
 
-scheduler.add_job(scrape_tiktok, 'cron', hour=17, minute=30)
+scheduler.add_job(scrape_tiktok, 'cron', hour=00, minute=20)
 
 @app.on_event("startup")
 async def start_scheduler():
