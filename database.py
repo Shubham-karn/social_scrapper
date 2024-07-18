@@ -27,7 +27,8 @@ async def get_mysql_pool():
                     port= os.getenv('DB_PORT'),
                     user= os.getenv('DB_USER'),
                     password=os.getenv('DB_PASSWORD'),
-                    database=os.getenv('DB_NAME')
+                    database=os.getenv('DB_NAME'),
+                    statement_cache_size=0
                 )
                 logging.info("MySQL connection pool created.")
                 break

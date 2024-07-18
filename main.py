@@ -1,5 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
+import httpx
 import json
+import re
+import pandas as pd
 import logging
 from typing import Optional
 from pydantic import BaseModel
@@ -20,6 +24,16 @@ scheduler = AsyncIOScheduler()
 
 redis = None
 mysql_pool = None
+
+df = pd.read_csv('scraped_data_instagram.csv')
+
+def extract_image_id(url):
+    match = re.search(r'/(\d+)\.jpg', url)
+    return match.group(1) if match else None
+
+df['image_id'] = df['img'].apply(extract_image_id)
+
+image_urls = dict(zip(df['image_id'].dropna(), df['img'][df['image_id'].notna()]))
 
 @app.on_event("startup")
 async def startup_event():
@@ -62,6 +76,28 @@ async def root():
             "status": 500,
             "error": str(e)
             }
+
+@app.get("/images/{image_id}")
+async def get_image(image_id: str):
+    if image_id not in image_urls:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    cache_key = f"image-{image_id}"
+    cached_data = await redis.get(cache_key)
+    if cached_data:
+        return StreamingResponse(cached_data.iter_bytes(), media_type=cached_data.headers['content-type'])
+    
+    url = image_urls[image_id]
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            if response.status_code == 200:
+                await redis.set(cache_key, response, expire=3600)
+                return StreamingResponse(response.iter_bytes(), media_type=response.headers['content-type'])
+            else:
+                raise HTTPException(status_code=response.status_code, detail="Failed to fetch image")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching image: {e}")
 
 @app.get("/hashtag/top_media")
 async def get_hashtag(q: str):
@@ -133,12 +169,12 @@ async def scrape_instagram():
     await redis.set(cache_key, json.dumps(data), expire=86395)
     return data
 
-@app.get("/tiktok/influencers")
+@app.get("/tiktokrank")
 async def get_tiktok_influencers():
     mysql_pool = await get_mysql_pool()
     return await get_tiktok_stats(mysql_pool)
 
-@app.get("/instagram/influencers")
+@app.get("/instagramrank")
 async def get_instagram_influencers():
     mysql_pool = await get_mysql_pool()
     return await get_insta_stats(mysql_pool)

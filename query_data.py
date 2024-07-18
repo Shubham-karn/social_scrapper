@@ -2,6 +2,7 @@ import json
 from datetime import datetime, timedelta
 from collections import defaultdict
 import logging
+import re
 import pandas as pd
 
 def json_serial(obj):
@@ -9,6 +10,10 @@ def json_serial(obj):
     if isinstance(obj, datetime):
         return obj.isoformat()
     raise TypeError(f"Type {type(obj)} not serializable")
+
+def extract_image_id(url):
+    match = re.search(r'/(\d+)\.jpg', url)
+    return match.group(1) if match else None
 
 async def query_insta_user_data(pg_pool, username):
     query_sql = """
@@ -63,10 +68,11 @@ async def query_insta_user_data(pg_pool, username):
                 # Remove empty date entries
                 user_data["HistoricalData"] = {k: v for k, v in user_data["HistoricalData"].items() if v}
                 
-                # Use json.dumps with the custom serializer to handle datetime objects
+                data = json.loads(json.dumps(user_data, default=json_serial))
+                data['ImageURL'] =  extract_image_id(data['ImageURL']) if extract_image_id(data['ImageURL']) else data['ImageURL']
                 return {
                     "status_code": 200,
-                    "data": json.loads(json.dumps(user_data, default=json_serial))
+                    "data": data
                 }
             else:
                 return None
@@ -342,10 +348,12 @@ async def get_insta_stats(pg_pool):
         async with pg_pool.acquire() as conn:
             results = await conn.fetch(query)
             
-            # Convert results to a list of dictionaries
+            data = [dict(row) for row in results]
+            for user in data:
+                user['imageurl'] = extract_image_id(user['imageurl']) if extract_image_id(user['imageurl']) else user['imageurl']
             return {
                 "status_code": 200,
-                "data": [dict(row) for row in results]
+                "data": data
             }
     except Exception as e:
         logging.error(f"Failed to retrieve user stats: {e}")
