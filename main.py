@@ -82,30 +82,35 @@ async def root():
 async def get_image(image_id: str):
     if image_id not in image_urls:
         raise HTTPException(status_code=404, detail="Image not found")
-    
-    cache_key = f"image-{image_id}"
-    cached_data = await redis.get(cache_key)
-    if cached_data:
-        content_type = await redis.get(f"{cache_key}-content-type")
-        if content_type:
-            content_type = content_type.decode('utf-8')
-        else:
-            content_type = "application/octet-stream" 
-        return StreamingResponse(io.BytesIO(cached_data), media_type=content_type)
-    
-    url = image_urls[image_id]
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url)
-            if response.status_code == 200:
-                # Store the image content and content-type separately
-                await redis.set(cache_key, response.content)
-                await redis.set(f"{cache_key}-content-type", response.headers['content-type'].encode('utf-8'))
-                return StreamingResponse(response.iter_bytes(), media_type=response.headers['content-type'])
+        cache_key = f"image-{image_id}"
+        cached_data = await redis.get(cache_key)
+        if cached_data:
+            content_type = await redis.get(f"{cache_key}-content-type")
+            if content_type:
+                content_type = content_type.decode('utf-8')
             else:
-                raise HTTPException(status_code=response.status_code, detail="Failed to fetch image")
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching image: {e}")
+                content_type = "application/octet-stream" 
+            return StreamingResponse(io.BytesIO(cached_data), media_type=content_type)
+        
+        url = image_urls[image_id]
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url)
+                if response.status_code == 200:
+                    # Store the image content and content-type separately
+                    await redis.set(cache_key, response.content)
+                    await redis.set(f"{cache_key}-content-type", response.headers['content-type'].encode('utf-8'))
+                    return StreamingResponse(response.iter_bytes(), media_type=response.headers['content-type'])
+                else:
+                    raise HTTPException(status_code=response.status_code, detail="Failed to fetch image")
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=500, detail=f"Error fetching image: {e}")
+    except Exception as e:
+        return {
+            "status": 500,
+            "error": str(e)
+            }
 
 @app.get("/hashtag/top_media")
 async def get_hashtag(q: str):
