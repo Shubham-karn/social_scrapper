@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse
 import httpx
 import json
 import re
+import io
 import pandas as pd
 import logging
 from typing import Optional
@@ -85,14 +86,21 @@ async def get_image(image_id: str):
     cache_key = f"image-{image_id}"
     cached_data = await redis.get(cache_key)
     if cached_data:
-        return StreamingResponse(cached_data.iter_bytes(), media_type=cached_data.headers['content-type'])
+        content_type = await redis.get(f"{cache_key}-content-type")
+        if content_type:
+            content_type = content_type.decode('utf-8')
+        else:
+            content_type = "application/octet-stream" 
+        return StreamingResponse(io.BytesIO(cached_data), media_type=content_type)
     
     url = image_urls[image_id]
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(url)
             if response.status_code == 200:
-                await redis.set(cache_key, response, expire=3600)
+                # Store the image content and content-type separately
+                await redis.set(cache_key, response.content)
+                await redis.set(f"{cache_key}-content-type", response.headers['content-type'].encode('utf-8'))
                 return StreamingResponse(response.iter_bytes(), media_type=response.headers['content-type'])
             else:
                 raise HTTPException(status_code=response.status_code, detail="Failed to fetch image")

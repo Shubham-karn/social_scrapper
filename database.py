@@ -12,7 +12,7 @@ mysql_pool = None
 
 async def get_redis():
     return await aioredis.create_redis_pool(
-        'redis://redis_container:6379', encoding='utf8'
+        'redis://redis_container:6379'
     )
 
 async def get_mysql_pool():
