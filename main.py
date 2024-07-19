@@ -199,7 +199,7 @@ async def get_tiktok_data(username: str):
     data = await query_tiktok_user_data(mysql_pool, username)
     return data
 
-@app.get("/instagram/news")
+@app.get("/instagramnews")
 async def get_news():
     cache_key = "instagram-news"
     cached_data = await redis.get(cache_key)
