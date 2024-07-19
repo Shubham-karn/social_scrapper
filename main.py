@@ -99,8 +99,8 @@ async def get_image(image_id: str):
                 response = await client.get(url)
                 if response.status_code == 200:
                     # Store the image content and content-type separately
-                    await redis.set(cache_key, response.content)
-                    await redis.set(f"{cache_key}-content-type", response.headers['content-type'].encode('utf-8'))
+                    await redis.set(cache_key, response.content, expire=86400)
+                    await redis.set(f"{cache_key}-content-type", response.headers['content-type'].encode('utf-8'), expire=86400)
                     return StreamingResponse(response.iter_bytes(), media_type=response.headers['content-type'])
                 else:
                     raise HTTPException(status_code=response.status_code, detail="Failed to fetch image")
