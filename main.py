@@ -1,9 +1,8 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
-import httpx
+from fastapi import FastAPI
+import requests
+import os
 import json
 import re
-import io
 import pandas as pd
 import logging
 from typing import Optional
@@ -78,39 +77,26 @@ async def root():
             "error": str(e)
             }
 
-@app.get("/images/{image_id}")
-async def get_image(image_id: str):
-    if image_id not in image_urls:
-        raise HTTPException(status_code=404, detail="Image not found")
+def save_image( public_folder='public'):
     try:
-        cache_key = f"image-{image_id}"
-        cached_data = await redis.get(cache_key)
-        if cached_data:
-            content_type = await redis.get(f"{cache_key}-content-type")
-            if content_type:
-                content_type = content_type.decode('utf-8')
-            else:
-                content_type = "application/octet-stream" 
-            return StreamingResponse(io.BytesIO(cached_data), media_type=content_type)
-        
-        url = image_urls[image_id]
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url)
-                if response.status_code == 200:
-                    # Store the image content and content-type separately
-                    await redis.set(cache_key, response.content, expire=86400)
-                    await redis.set(f"{cache_key}-content-type", response.headers['content-type'].encode('utf-8'), expire=86400)
-                    return StreamingResponse(response.iter_bytes(), media_type=response.headers['content-type'])
-                else:
-                    raise HTTPException(status_code=response.status_code, detail="Failed to fetch image")
-        except httpx.RequestError as e:
-            raise HTTPException(status_code=500, detail=f"Error fetching image: {e}")
+        for key, value in image_urls.items():
+            file_path = os.path.join(public_folder, f"{key}.jpg")
+            
+            try:
+                response = requests.get(value, stream=True)
+                response.raise_for_status()
+                
+                if 'image' in response.headers['Content-Type'] and int(response.headers.get('Content-Length', 0)) > 0:
+                    with open(file_path, 'wb') as file:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            file.write(chunk)
+            except requests.exceptions.RequestException as e:
+                print(f"Error downloading image {key}: {e}")
+            except IOError as e:
+                print(f"Error saving image {key}: {e}")
     except Exception as e:
-        return {
-            "status": 500,
-            "error": str(e)
-            }
+        print(f"Error: {e}")
+
 
 @app.get("/hashtag/top_media")
 async def get_hashtag(q: str):
@@ -280,6 +266,8 @@ async def get_trend():
 scheduler.add_job(scrape_instagram, 'cron', hour=00, minute=10)
 
 scheduler.add_job(scrape_tiktok, 'cron', hour=00, minute=40)
+
+scheduler.add_job(save_image, 'cron', hour=1, minute=10)
 
 @app.on_event("startup")
 async def start_scheduler():
