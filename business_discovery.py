@@ -10,7 +10,7 @@ async def business_discovery(username):
         url = f"https://graph.facebook.com/v3.2/{user_id}"
 
         params = {
-            "fields": f"business_discovery.username({username}){{followers_count,media_count,media{{permalink,like_count,media_url,media_type,caption}}}}",
+            "fields": f"business_discovery.username({username}){{website,profile_picture_url,follows_count,followers_count,media_count,media{{permalink,like_count,media_url,media_type,caption}}}}",
             "access_token": os.getenv("ACCESS_TOKEN"),
         }
 
