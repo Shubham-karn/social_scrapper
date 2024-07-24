@@ -166,14 +166,14 @@ async def scrape_instagram():
     return data
 
 @app.get("/tiktokrank")
-async def get_tiktok_influencers():
+async def get_tiktok_influencers(p: int = 1):
     mysql_pool = await get_mysql_pool()
-    return await get_tiktok_stats(mysql_pool)
+    return await get_tiktok_stats(mysql_pool, page=p)
 
 @app.get("/instagramrank")
-async def get_instagram_influencers():
+async def get_instagram_influencers(p: int = 1):
     mysql_pool = await get_mysql_pool()
-    return await get_insta_stats(mysql_pool)
+    return await get_insta_stats(mysql_pool, page=p)
 
 @app.get("/instagram/{username}")
 async def get_instagram_data(username: str):

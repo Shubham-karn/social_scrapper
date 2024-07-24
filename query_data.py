@@ -278,7 +278,9 @@ async def update_or_insert_tiktok_data_from_csv(pg_pool, csv_file_path):
     except Exception as e:
         logging.error(f"Failed to update or insert TikTok data from CSV: {e}")
 
-async def get_insta_stats(pg_pool):
+async def get_insta_stats(pg_pool, page=1, per_page=30):
+    offset = (page - 1) * per_page
+
     query = """
     SELECT 
         insta_stats.ID,
@@ -342,18 +344,32 @@ async def get_insta_stats(pg_pool):
         insta_stats.ID, insta_stats.Username, insta_stats.Category, insta_stats.Country, insta_stats.ImageURL
     ORDER BY
         RankToday ASC
+        LIMIT $1 OFFSET $2
+    """
+    count_query = """
+    SELECT COUNT(*) FROM instagram_stats
     """
 
     try:
         async with pg_pool.acquire() as conn:
-            results = await conn.fetch(query)
+            results = await conn.fetch(query, per_page, offset)
+            total_count = await conn.fetchval(count_query)
             
             data = [dict(row) for row in results]
             for user in data:
                 user['imageurl'] = extract_image_id(user['imageurl']) if extract_image_id(user['imageurl']) else user['imageurl']
+            
+            total_pages = (total_count + per_page - 1) // per_page
+            
             return {
                 "status_code": 200,
-                "data": data
+                "data": data,
+                "pagination": {
+                    "page": page,
+                    "per_page": per_page,
+                    "total_count": total_count,
+                    "total_pages": total_pages
+                }
             }
     except Exception as e:
         logging.error(f"Failed to retrieve user stats: {e}")
@@ -363,7 +379,9 @@ async def get_insta_stats(pg_pool):
         }
     
 
-async def get_tiktok_stats(pg_pool):
+async def get_tiktok_stats(pg_pool, page=1, per_page=30):
+    offset = (page - 1) * per_page
+
     query = """
     SELECT 
         tiktok_stats.ID,
@@ -461,16 +479,30 @@ async def get_tiktok_stats(pg_pool):
         tiktok_stats.ID, tiktok_stats.Username, tiktok_stats.ImageURL
     ORDER BY
         RankToday ASC
+        LIMIT $1 OFFSET $2
+    """
+
+    count_query = """
+    SELECT COUNT(*) FROM tiktok_stats
     """
 
     try:
         async with pg_pool.acquire() as conn:
-            results = await conn.fetch(query)
+            results = await conn.fetch(query, per_page, offset)
+            total_count = await conn.fetchval(count_query)
             
-            # Convert results to a list of dictionaries
+            data = [dict(row) for row in results]
+            total_pages = (total_count + per_page - 1) // per_page
+            
             return {
                 "status_code": 200,
-                "data": [dict(row) for row in results]
+                "data": data,
+                "pagination": {
+                    "page": page,
+                    "per_page": per_page,
+                    "total_count": total_count,
+                    "total_pages": total_pages
+                }
             }
     except Exception as e:
         logging.error(f"Failed to retrieve TikTok stats: {e}")
