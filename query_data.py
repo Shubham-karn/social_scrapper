@@ -75,7 +75,10 @@ async def query_insta_user_data(pg_pool, username):
                     "data": data
                 }
             else:
-                return None
+                return {
+                    "status_code": 404,
+                    "error": "User not found"
+                }
         
     except Exception as e:
         logging.error(f"Failed to query Instagram user data: {e}")
@@ -158,7 +161,10 @@ async def query_tiktok_user_data(pg_pool, username):
                     "data": json.loads(json.dumps(user_data, default=json_serial))
                 }
             else:
-                return None
+                return {
+                    "status_code": 404,
+                    "error": "User not found"
+                }
         
     except Exception as e:
         logging.error(f"Failed to query TikTok user data: {e}")
