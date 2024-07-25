@@ -105,29 +105,18 @@ async def get_bulk_business_discovery(usernames: str):
     return data
 
 async def scrape_tiktok():
-    cache_key = "scrape-tiktok"
-    cached_data = await redis.get(cache_key)
-    if cached_data:
-        return json.loads(cached_data)
-    
     mysql_pool = await get_mysql_pool()
     data = await tiktok_scrap()
     await update_or_insert_tiktok_data_from_csv(mysql_pool, 'scraped_data_tiktok.csv')
     await delete_old_tiktok_data(mysql_pool)
-    await redis.set(cache_key, json.dumps(data), expire=86395)
     return data
 
 async def scrape_instagram():
-    cache_key = "scrape-instagram"
-    cached_data = await redis.get(cache_key)
-    if cached_data:
-        return json.loads(cached_data)
     
     mysql_pool = await get_mysql_pool()
     data = await instagram_scrap()
     await update_or_insert_instagram_data_from_csv(mysql_pool, 'scraped_data_instagram.csv')
     await delete_old_insta_data(mysql_pool)
-    await redis.set(cache_key, json.dumps(data), expire=86395)
     return data
 
 @app.get("/tiktokrank")
@@ -230,6 +219,7 @@ scheduler.add_job(scrape_instagram, 'cron', hour=00, minute=10)
 scheduler.add_job(scrape_tiktok, 'cron', hour=00, minute=40)
 
 scheduler.add_job(save_image, 'cron', hour=1, minute=10)
+
 
 @app.on_event("startup")
 async def start_scheduler():

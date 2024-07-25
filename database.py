@@ -222,12 +222,12 @@ async def create_tiktok_tables(pg_pool):
     except Exception as e:
         logging.error(f"Failed to create TikTok tables: {e}")
 
-async def main():
-    global redis, mysql_pool
-    redis = await get_redis()
-    mysql_pool = await get_mysql_pool()
-    await create_insta_table(mysql_pool)
-    await create_tiktok_tables(mysql_pool)
+# async def main():
+#     global redis, mysql_pool
+#     redis = await get_redis()
+#     mysql_pool = await get_mysql_pool()
+#     await create_insta_table(mysql_pool)
+#     await create_tiktok_tables(mysql_pool)
 
 # if __name__ == "__main__":
 #     logging.basicConfig(level=logging.INFO)
