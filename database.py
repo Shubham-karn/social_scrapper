@@ -4,11 +4,60 @@ import logging
 import asyncio
 import dotenv
 import os
+import re
+import requests
+import pandas as pd
+import boto3
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 
 dotenv.load_dotenv()
 
 redis = None
 mysql_pool = None
+
+df = pd.read_csv('scraped_data_instagram.csv')
+
+def extract_image_id(url):
+    match = re.search(r'/(\d+)\.jpg', url)
+    return match.group(1) if match else None
+
+df['image_id'] = df['img'].apply(extract_image_id)
+
+image_urls = dict(zip(df['image_id'].dropna(), df['img'][df['image_id'].notna()]))
+
+client = boto3.client(
+    's3',
+    endpoint_url= os.getenv('S3_ENDPOINT_URL'),
+    aws_access_key_id= os.getenv('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key= os.getenv('AWS_SECRET_ACCESS_KEY'),
+    region_name= os.getenv('AWS_REGION'),
+    config=boto3.session.Config(s3={'addressing_style': 'path'})
+)
+
+def save_image():
+    try:
+        for key, value in image_urls.items():
+            
+            try:
+                response = requests.get(value, stream=True)
+                response.raise_for_status()
+                
+                if 'image' in response.headers['Content-Type'] and int(response.headers.get('Content-Length', 0)) > 0:
+                    client.put_object(
+                        Bucket= os.getenv('BUCKET_NAME'), 
+                        Key=f"{key}.jpg",
+                        Body=response.content,
+                        ContentType=response.headers['Content-Type']
+                    )
+            except requests.exceptions.RequestException as e:
+                print(f"Error downloading image {key}: {e}")
+            except Exception as e:
+                print(f"Error saving image {key}: {e}")
+    except (NoCredentialsError, PartialCredentialsError) as e:
+        print(f"Credentials error: {e}")
+    except Exception as e:
+        print(f"Error: {e}")
+
 
 async def get_redis():
     return await aioredis.create_redis_pool(

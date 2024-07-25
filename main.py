@@ -1,9 +1,5 @@
 from fastapi import FastAPI
-import requests
-import os
 import json
-import re
-import pandas as pd
 import logging
 from typing import Optional
 from pydantic import BaseModel
@@ -14,7 +10,7 @@ from news import get_instagram_news, newsapi, news_data, serpapi, news_username
 # from summarizer import summary
 from location import get_city, get_location, get_city_url
 from trend import get_trend_1
-from database import get_redis, get_mysql_pool, create_insta_table, create_tiktok_tables
+from database import get_redis, get_mysql_pool, create_insta_table, create_tiktok_tables, save_image
 from query_data import update_or_insert_instagram_data_from_csv, update_or_insert_tiktok_data_from_csv, get_insta_stats, get_tiktok_stats
 from query_data import query_insta_user_data, query_tiktok_user_data, delete_old_insta_data, delete_old_tiktok_data
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -24,16 +20,6 @@ scheduler = AsyncIOScheduler()
 
 redis = None
 mysql_pool = None
-
-df = pd.read_csv('scraped_data_instagram.csv')
-
-def extract_image_id(url):
-    match = re.search(r'/(\d+)\.jpg', url)
-    return match.group(1) if match else None
-
-df['image_id'] = df['img'].apply(extract_image_id)
-
-image_urls = dict(zip(df['image_id'].dropna(), df['img'][df['image_id'].notna()]))
 
 @app.on_event("startup")
 async def startup_event():
@@ -73,27 +59,6 @@ async def root():
             "status": 500,
             "error": str(e)
             }
-
-def save_image( public_folder='public'):
-    try:
-        for key, value in image_urls.items():
-            file_path = os.path.join(public_folder, f"{key}.jpg")
-            
-            try:
-                response = requests.get(value, stream=True)
-                response.raise_for_status()
-                
-                if 'image' in response.headers['Content-Type'] and int(response.headers.get('Content-Length', 0)) > 0:
-                    with open(file_path, 'wb') as file:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            file.write(chunk)
-            except requests.exceptions.RequestException as e:
-                print(f"Error downloading image {key}: {e}")
-            except IOError as e:
-                print(f"Error saving image {key}: {e}")
-    except Exception as e:
-        print(f"Error: {e}")
-
 
 @app.get("/hashtag/top_media")
 async def get_hashtag(q: str):
