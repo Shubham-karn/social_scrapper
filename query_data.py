@@ -3,7 +3,29 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 import logging
 import re
+import json
 import pandas as pd
+from decimal import Decimal
+
+def abbreviate_numbers(json_list):
+    def convert_number(value):
+        if value == 0:
+            return None
+        elif isinstance(value, (int, float, Decimal)):
+            if value >= 1_000_000:
+                return f"{value / 1_000_000:.1f}M"
+            elif value >= 1_000:
+                return f"{value / 1_000:.1f}K"
+        return value
+
+    result = []
+    for item in json_list:
+        new_item = {}
+        for key, value in item.items():
+            new_item[key] = convert_number(value)
+        result.append(new_item)
+    
+    return result
 
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
@@ -284,7 +306,27 @@ async def update_or_insert_tiktok_data_from_csv(pg_pool, csv_file_path):
     except Exception as e:
         logging.error(f"Failed to update or insert TikTok data from CSV: {e}")
 
-async def get_insta_stats(pg_pool, page=1, per_page=30):
+async def get_insta_stats(pg_pool, page=1, per_page=30, sort_by="rank"):
+
+    sorting = {
+        "followers": "FollowersToday",
+        "engagement": "EngagementToday",
+        "rank": "RankToday",
+        "followers7": "Followers7DaysAgo",
+        "engagement7": "Engagement7DaysAgo",
+        "rank7": "Rank7DaysAgo",
+        "followers14": "Followers14DaysAgo",
+        "engagement14": "Engagement14DaysAgo",
+        "rank14": "Rank14DaysAgo",
+        "followers28": "Followers28DaysAgo",
+        "engagement28": "Engagement28DaysAgo",
+        "rank28": "Rank28DaysAgo"
+    }
+
+    user_sort_key = sort_by.lower()
+
+    order_sort_key = sorting.get(user_sort_key, "RankToday")
+
     offset = (page - 1) * per_page
 
     query = """
@@ -296,23 +338,23 @@ async def get_insta_stats(pg_pool, page=1, per_page=30):
         insta_stats.ImageURL,
         
         -- Today's data
-        MAX(f1.FollowersCount) AS FollowersToday,
-        MAX(e1.EngagementRate) AS EngagementToday,
+        convert_to_number(MAX(f1.FollowersCount)::text) AS FollowersToday,
+        convert_to_number(MAX(e1.EngagementRate)::text) AS EngagementToday,
         MAX(r1.Position) AS RankToday,
-        
+
         -- 7 days ago
-        MAX(f7.FollowersCount) AS Followers7DaysAgo,
-        MAX(e7.EngagementRate) AS Engagement7DaysAgo,
+        convert_to_number(MAX(f7.FollowersCount)::text) AS Followers7DaysAgo,
+        convert_to_number(MAX(e7.EngagementRate)::text) AS Engagement7DaysAgo,
         MAX(r7.Position) AS Rank7DaysAgo,
         
         -- 14 days ago
-        MAX(f14.FollowersCount) AS Followers14DaysAgo,
-        MAX(e14.EngagementRate) AS Engagement14DaysAgo,
+        convert_to_number(MAX(f14.FollowersCount)::text) AS Followers14DaysAgo,
+        convert_to_number(MAX(e14.EngagementRate)::text) AS Engagement14DaysAgo,
         MAX(r14.Position) AS Rank14DaysAgo,
         
         -- 28 days ago
-        MAX(f28.FollowersCount) AS Followers28DaysAgo,
-        MAX(e28.EngagementRate) AS Engagement28DaysAgo,
+        convert_to_number(MAX(f28.FollowersCount)::text) AS Followers28DaysAgo,
+        convert_to_number(MAX(e28.EngagementRate)::text) AS Engagement28DaysAgo,
         MAX(r28.Position) AS Rank28DaysAgo
     FROM 
         instagram_stats insta_stats
@@ -349,9 +391,10 @@ async def get_insta_stats(pg_pool, page=1, per_page=30):
     GROUP BY
         insta_stats.ID, insta_stats.Username, insta_stats.Category, insta_stats.Country, insta_stats.ImageURL
     ORDER BY
-        RankToday ASC
+        {} DESC
         LIMIT $1 OFFSET $2
-    """
+    """.format(order_sort_key)
+
     count_query = """
     SELECT COUNT(*) FROM instagram_stats
     """
@@ -367,9 +410,11 @@ async def get_insta_stats(pg_pool, page=1, per_page=30):
             
             total_pages = (total_count + per_page - 1) // per_page
             
+            json_data = abbreviate_numbers(data)
+
             return {
                 "status_code": 200,
-                "data": data,
+                "data": json_data,
                 "pagination": {
                     "page": page,
                     "per_page": per_page,
@@ -385,7 +430,38 @@ async def get_insta_stats(pg_pool, page=1, per_page=30):
         }
     
 
-async def get_tiktok_stats(pg_pool, page=1, per_page=30):
+async def get_tiktok_stats(pg_pool, page=1, per_page=30, sort_by="rank"):
+    sorting = {
+        "followers": "FollowersToday",
+        "likes": "LikesToday",
+        "views": "ViewsToday",
+        "comments": "CommentsToday",
+        "shares": "SharesToday",
+        "rank": "RankToday",
+        "followers7": "Followers7DaysAgo",
+        "likes7": "Likes7DaysAgo",
+        "views7": "Views7DaysAgo",
+        "comments7": "Comments7DaysAgo",
+        "shares7": "Shares7DaysAgo",
+        "rank7": "Rank7DaysAgo",
+        "followers14": "Followers14DaysAgo",
+        "likes14": "Likes14DaysAgo",
+        "views14": "Views14DaysAgo",
+        "comments14": "Comments14DaysAgo",
+        "shares14": "Shares14DaysAgo",
+        "rank14": "Rank14DaysAgo",
+        "followers28": "Followers28DaysAgo",
+        "likes28": "Likes28DaysAgo",
+        "views28": "Views28DaysAgo",
+        "comments28": "Comments28DaysAgo",
+        "shares28": "Shares28DaysAgo",
+        "rank28": "Rank28DaysAgo"
+    }
+
+    user_sort_key = sort_by.lower()
+
+    order_sort_key = sorting.get(user_sort_key, "RankToday")
+
     offset = (page - 1) * per_page
 
     query = """
@@ -395,35 +471,35 @@ async def get_tiktok_stats(pg_pool, page=1, per_page=30):
         tiktok_stats.ImageURL,
         
         -- Today's data
-        MAX(f1.FollowersCount) AS FollowersToday,
-        MAX(l1.LikesCount) AS LikesToday,
-        MAX(v1.ViewsCount) AS ViewsToday,
-        MAX(c1.CommentsCount) AS CommentsToday,
-        MAX(s1.SharesCount) AS SharesToday,
+        convert_to_number(MAX(f1.FollowersCount)::text) AS FollowersToday,
+        convert_to_number(MAX(l1.LikesCount)::text) AS LikesToday,
+        convert_to_number(MAX(v1.ViewsCount)::text) AS ViewsToday,
+        convert_to_number(MAX(c1.CommentsCount)::text) AS CommentsToday,
+        convert_to_number(MAX(s1.SharesCount)::text) AS SharesToday,
         MAX(r1.Position) AS RankToday,
         
         -- 7 days ago
-        MAX(f7.FollowersCount) AS Followers7DaysAgo,
-        MAX(l7.LikesCount) AS Likes7DaysAgo,
-        MAX(v7.ViewsCount) AS Views7DaysAgo,
-        MAX(c7.CommentsCount) AS Comments7DaysAgo,
-        MAX(s7.SharesCount) AS Shares7DaysAgo,
+        convert_to_number(MAX(f7.FollowersCount)::text) AS Followers7DaysAgo,
+        convert_to_number(MAX(l7.LikesCount)::text) AS Likes7DaysAgo,
+        convert_to_number(MAX(v7.ViewsCount)::text) AS Views7DaysAgo,
+        convert_to_number(MAX(c7.CommentsCount)::text) AS Comments7DaysAgo,
+        convert_to_number(MAX(s7.SharesCount)::text) AS Shares7DaysAgo,
         MAX(r7.Position) AS Rank7DaysAgo,
         
         -- 14 days ago
-        MAX(f14.FollowersCount) AS Followers14DaysAgo,
-        MAX(l14.LikesCount) AS Likes14DaysAgo,
-        MAX(v14.ViewsCount) AS Views14DaysAgo,
-        MAX(c14.CommentsCount) AS Comments14DaysAgo,
-        MAX(s14.SharesCount) AS Shares14DaysAgo,
+        convert_to_number(MAX(f14.FollowersCount)::text) AS Followers14DaysAgo,
+        convert_to_number(MAX(l14.LikesCount)::text) AS Likes14DaysAgo,
+        convert_to_number(MAX(v14.ViewsCount)::text) AS Views14DaysAgo,
+        convert_to_number(MAX(c14.CommentsCount)::text) AS Comments14DaysAgo,
+        convert_to_number(MAX(s14.SharesCount)::text) AS Shares14DaysAgo,
         MAX(r14.Position) AS Rank14DaysAgo,
         
         -- 28 days ago
-        MAX(f28.FollowersCount) AS Followers28DaysAgo,
-        MAX(l28.LikesCount) AS Likes28DaysAgo,
-        MAX(v28.ViewsCount) AS Views28DaysAgo,
-        MAX(c28.CommentsCount) AS Comments28DaysAgo,
-        MAX(s28.SharesCount) AS Shares28DaysAgo,
+        convert_to_number(MAX(f28.FollowersCount)::text) AS Followers28DaysAgo,
+        convert_to_number(MAX(l28.LikesCount)::text) AS Likes28DaysAgo,
+        convert_to_number(MAX(v28.ViewsCount)::text) AS Views28DaysAgo,
+        convert_to_number(MAX(c28.CommentsCount)::text) AS Comments28DaysAgo,
+        convert_to_number(MAX(s28.SharesCount)::text) AS Shares28DaysAgo,
         MAX(r28.Position) AS Rank28DaysAgo
     FROM 
         tiktok_stats
@@ -439,7 +515,7 @@ async def get_tiktok_stats(pg_pool, page=1, per_page=30):
         shares_history s1 ON tiktok_stats.ID = s1.TikTokStatsID AND DATE(s1.RecordedAt) = CURRENT_DATE
     LEFT JOIN 
         rank_tiktok r1 ON tiktok_stats.ID = r1.TikTokStatsID AND DATE(r1.RecordedAt) = CURRENT_DATE
-    
+
     -- 7 days ago joins
     LEFT JOIN 
         followers_tiktok f7 ON tiktok_stats.ID = f7.TikTokStatsID AND DATE(f7.RecordedAt) = CURRENT_DATE - INTERVAL '7 days'
@@ -453,7 +529,7 @@ async def get_tiktok_stats(pg_pool, page=1, per_page=30):
         shares_history s7 ON tiktok_stats.ID = s7.TikTokStatsID AND DATE(s7.RecordedAt) = CURRENT_DATE - INTERVAL '7 days'
     LEFT JOIN 
         rank_tiktok r7 ON tiktok_stats.ID = r7.TikTokStatsID AND DATE(r7.RecordedAt) = CURRENT_DATE - INTERVAL '7 days'
-    
+
     -- 14 days ago joins
     LEFT JOIN 
         followers_tiktok f14 ON tiktok_stats.ID = f14.TikTokStatsID AND DATE(f14.RecordedAt) = CURRENT_DATE - INTERVAL '14 days'
@@ -467,7 +543,7 @@ async def get_tiktok_stats(pg_pool, page=1, per_page=30):
         shares_history s14 ON tiktok_stats.ID = s14.TikTokStatsID AND DATE(s14.RecordedAt) = CURRENT_DATE - INTERVAL '14 days'
     LEFT JOIN 
         rank_tiktok r14 ON tiktok_stats.ID = r14.TikTokStatsID AND DATE(r14.RecordedAt) = CURRENT_DATE - INTERVAL '14 days'
-    
+
     -- 28 days ago joins
     LEFT JOIN 
         followers_tiktok f28 ON tiktok_stats.ID = f28.TikTokStatsID AND DATE(f28.RecordedAt) = CURRENT_DATE - INTERVAL '28 days'
@@ -484,9 +560,9 @@ async def get_tiktok_stats(pg_pool, page=1, per_page=30):
     GROUP BY
         tiktok_stats.ID, tiktok_stats.Username, tiktok_stats.ImageURL
     ORDER BY
-        RankToday ASC
-        LIMIT $1 OFFSET $2
-    """
+        {} DESC
+    LIMIT $1 OFFSET $2
+    """.format(order_sort_key)
 
     count_query = """
     SELECT COUNT(*) FROM tiktok_stats
@@ -499,10 +575,12 @@ async def get_tiktok_stats(pg_pool, page=1, per_page=30):
             
             data = [dict(row) for row in results]
             total_pages = (total_count + per_page - 1) // per_page
+
+            json_data = abbreviate_numbers(data)
             
             return {
                 "status_code": 200,
-                "data": data,
+                "data": json_data,
                 "pagination": {
                     "page": page,
                     "per_page": per_page,
